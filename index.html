@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Digital Sanctuary 💖</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        romantic: {
+                            bg1: '#0a0209',
+                            bg2: '#1d0720',
+                            bg3: '#2b0c2a',
+                            rose: '#ff4d6d',
+                            roseLight: '#ff758f',
+                            gold: '#ffd700',
+                            goldLight: '#fff099',
+                            softPink: '#f3a6b3',
+                            glassBorder: 'rgba(255, 182, 193, 0.2)'
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['"Cormorant Garamond"', 'serif'],
+                        cursive: ['"Alex Brush"', 'cursive'],
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #0a0209 0%, #1d0720 50%, #2b0c2a 100%);
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism Styles */
+        .glass-card {
+            background: rgba(30, 10, 32, 0.55);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 182, 193, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .glass-card-interactive {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .glass-card-interactive:hover {
+            transform: translateY(-6px) scale(1.01);
+            border-color: rgba(255, 77, 109, 0.4);
+            box-shadow: 0 12px 40px 0 rgba(255, 77, 109, 0.25);
+        }
+
+        /* Glowing text effects */
+        .glow-text-gold {
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+
+        .glow-text-rose {
+            text-shadow: 0 0 12px rgba(255, 77, 109, 0.6), 0 0 25px rgba(255, 77, 109, 0.4);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0209;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #ff4d6d;
+            border-radius: 4px;
+        }
+
+        /* Animations */
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(255,77,109,0.6)); }
+            50% { transform: scale(1.08); filter: drop-shadow(0 0 18px rgba(255,77,109,0.9)); }
+        }
+
+        .pulse-heart {
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+
+        /* Notification Toast Slide In */
+        @keyframes slideDown {
+            from { transform: translate(-50%, -100%); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+
+        .toast-notification {
+            animation: slideDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Canvas Overlay */
+        #particleCanvas, #flowerCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #particleCanvas {
+            pointer-events: none;
+        }
+
+        #flowerCanvas {
+            pointer-events: auto;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="relative">
+
+    <!-- Latar Belakang Partikel Melayang -->
+    <div class="fixed inset-0 pointer-events-none z-0">
+        <canvas id="particleCanvas"></canvas>
+    </div>
+
+    <!-- Container Notifikasi Pop-up -->
+    <div id="notificationContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md hidden">
+        <div class="toast-notification bg-slate-900/95 border border-romantic-rose/60 p-4 rounded-2xl shadow-2xl backdrop-blur-xl flex items-center space-x-4">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-romantic-rose to-romantic-gold flex items-center justify-center text-2xl shrink-0 animate-bounce">
+                💖
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                    <h4 class="text-xs font-semibold uppercase tracking-wider text-romantic-gold">Sinyal Cinta Masuk!</h4>
+                    <span class="text-[10px] text-slate-400">Baru Saja</span>
+                </div>
+                <p id="notifText" class="text-sm font-medium text-slate-100 truncate">Doi lagi kangen banget sama kamu sekarang! 🥰</p>
+            </div>
+            <button onclick="hideNotification()" class="text-slate-400 hover:text-white p-1">
+                ✕
+            </button>
+        </div>
+    </div>
+
+    <div class="relative z-10 max-w-6xl mx-auto px-4 py-8 space-y-12">
+
+        <!-- HEADER & COUNTER BERSAMA -->
+        <header class="glass-card rounded-3xl p-6 md:p-10 text-center relative overflow-hidden">
+            <div class="absolute -top-24 -left-24 w-48 h-48 bg-romantic-rose/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-romantic-gold/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="mb-6">
+                <span class="text-xs md:text-sm uppercase tracking-[0.3em] text-romantic-softPink font-semibold">Our Digital Sanctuary</span>
+                <div class="flex items-center justify-center space-x-3 mt-2">
+                    <h1 id="coupleNames" class="font-cursive text-4xl md:text-6xl text-romantic-goldLight glow-text-gold cursor-pointer" title="Klik untuk ubah nama">
+                        Romeo & Juliet
+                    </h1>
+                    <button onclick="editNames()" class="text-xs bg-white/10 hover:bg-white/20 p-2 rounded-full text-slate-300 transition" title="Edit Nama Pasangan">
+                        ✏️
+                    </button>
+                </div>
+                <p class="font-serif italic text-slate-300 text-lg md:text-xl mt-2">"Setiap detik bersamamu adalah takdir terindah."</p>
+            </div>
+
+            <!-- Timer Menghitung Waktu Hubungan -->
+            <div class="bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-4 md:p-6 max-w-2xl mx-auto my-6">
+                <p class="text-xs uppercase tracking-widest text-romantic-softPink mb-3">Kita Telah Bersama Selama</p>
+                <div class="grid grid-cols-4 gap-2 md:gap-4 text-center">
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <span id="daysCount" class="block font-bold text-2xl md:text-4xl text-romantic-rose glow-text-rose">00</span>
+                        <span class="text-[10px] md:text-xs text-slate-400 uppercase">Hari</span>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <span id="hoursCount" class="block font-bold text-2xl md:text-4xl text-romantic-gold glow-text-gold">00</span>
+                        <span class="text-[10px] md:text-xs text-slate-400 uppercase">Jam</span>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <span id="minutesCount" class="block font-bold text-2xl md:text-4xl text-white">00</span>
+                        <span class="text-[10px] md:text-xs text-slate-400 uppercase">Menit</span>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <span id="secondsCount" class="block font-bold text-2xl md:text-4xl text-romantic-softPink">00</span>
+                        <span class="text-[10px] md:text-xs text-slate-400 uppercase">Detik</span>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-center space-x-2 text-xs text-slate-400">
+                    <span>Terhitung sejak:</span>
+                    <button onclick="editStartDate()" class="text-romantic-gold hover:underline font-medium" id="startDateDisplay">14 Februari 2023</button>
+                </div>
+            </div>
+
+            <!-- Tombol Musik Sintetis & Ping Kangen -->
+            <div class="flex flex-wrap items-center justify-center gap-4 mt-6">
+                <button id="musicBtn" onclick="toggleRomanticMusic()" class="glass-card hover:bg-white/10 px-5 py-2.5 rounded-full flex items-center space-x-2 text-sm text-slate-200 transition">
+                    <span id="musicIcon">🎵</span>
+                    <span id="musicText">Putar Musik Romantis</span>
+                </button>
+
+                <button onclick="sendMissYouPing()" class="bg-gradient-to-r from-romantic-rose to-pink-600 hover:from-pink-600 hover:to-romantic-rose text-white font-semibold px-6 py-2.5 rounded-full shadow-lg shadow-romantic-rose/30 flex items-center space-x-2 text-sm transition transform hover:scale-105 active:scale-95">
+                    <span class="pulse-heart">💖</span>
+                    <span>Kirim Sinyal Kangen!</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- SEKSI BUNGA MEKAR INTERAKTIF (CANVAS) -->
+        <section class="glass-card rounded-3xl p-6 md:p-10 relative overflow-hidden text-center">
+            <div class="max-w-xl mx-auto space-y-2 mb-4">
+                <span class="text-xs uppercase tracking-widest text-romantic-gold font-semibold">Spesial Untukmu</span>
+                <h2 class="font-serif text-3xl md:text-4xl font-semibold text-white">Bunga Cinta Abadi</h2>
+                <p class="text-sm text-slate-300">Sentuh atau klik pada kuncup bunga di bawah ini untuk melihatnya bermekaran mekar indah!</p>
+            </div>
+
+            <div class="relative w-full max-w-md h-80 md:h-96 mx-auto rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden">
+                <canvas id="flowerCanvas"></canvas>
+                <div id="flowerQuote" class="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-md p-3 rounded-xl border border-romantic-rose/30 text-xs text-romantic-softPink opacity-0 transition-opacity duration-1000">
+                    "Seperti bunga ini, cintaku padamu mekar sempurna setiap hari."
+                </div>
+            </div>
+            
+            <button onclick="triggerBloom(true)" class="mt-4 text-xs text-romantic-softPink/80 hover:text-romantic-softPink underline">
+                🌸 Mekarkan Ulang Bunga
+            </button>
+        </section>
+
+        <!-- GALERI FOTO KENANGAN -->
+        <section class="space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <span class="text-xs uppercase tracking-widest text-romantic-rose font-semibold">Galeri Kenangan</span>
+                    <h2 class="font-serif text-3xl md:text-4xl font-semibold text-white">Lini Masa Foto Kita</h2>
+                    <p class="text-sm text-slate-300">Setiap momen manis yang tersimpan abadi.</p>
+                </div>
+                <button onclick="openAddPhotoModal()" class="glass-card hover:bg-romantic-rose/20 text-romantic-roseLight border-romantic-rose/30 px-4 py-2 rounded-xl text-sm font-medium flex items-center space-x-2 self-start md:self-auto transition">
+                    <span>➕ Tambah Kenangan Baru</span>
+                </button>
+            </div>
+
+            <div id="photoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- SURAT "OPEN WHEN..." -->
+        <section class="space-y-6">
+            <div class="text-center max-w-xl mx-auto space-y-2">
+                <span class="text-xs uppercase tracking-widest text-romantic-gold font-semibold">Pesan Rahasia</span>
+                <h2 class="font-serif text-3xl md:text-4xl font-semibold text-white">Surat "Open When..."</h2>
+                <p class="text-sm text-slate-300">Buka surat ini hanya pada momen tertentu atau masukkan kata kunci khusus.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Surat 1 -->
+                <div onclick="openLetter(1)" class="glass-card glass-card-interactive p-6 rounded-2xl cursor-pointer text-center space-y-4 relative overflow-hidden group">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-romantic-rose/20 flex items-center justify-center text-3xl text-romantic-rose group-hover:scale-110 transition duration-300">✉️</div>
+                    <div>
+                        <span class="text-[10px] uppercase tracking-wider text-romantic-gold font-semibold">Surat #1</span>
+                        <h3 class="font-serif text-xl font-semibold text-white mt-1">Open When You Miss Me</h3>
+                        <p class="text-xs text-slate-400 mt-2">Buka saat kamu lagi kangen-kangennya sama aku...</p>
+                    </div>
+                    <span class="inline-block text-xs text-romantic-softPink font-medium underline pt-2">Klik Untuk Membaca →</span>
+                </div>
+
+                <!-- Surat 2 (Terkunci) -->
+                <div onclick="openLetter(2)" class="glass-card glass-card-interactive p-6 rounded-2xl cursor-pointer text-center space-y-4 relative overflow-hidden group">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-romantic-gold/20 flex items-center justify-center text-3xl text-romantic-gold group-hover:scale-110 transition duration-300">🔒</div>
+                    <div>
+                        <span class="text-[10px] uppercase tracking-wider text-romantic-gold font-semibold">Surat #2 (Terkunci)</span>
+                        <h3 class="font-serif text-xl font-semibold text-white mt-1">Open When You Feel Sad</h3>
+                        <p class="text-xs text-slate-400 mt-2">Membutuhkan kata sandi tanggal jadian kita (1402)...</p>
+                    </div>
+                    <span class="inline-block text-xs text-romantic-gold font-medium underline pt-2">Buka Dengan Sandi →</span>
+                </div>
+
+                <!-- Surat 3 -->
+                <div onclick="openLetter(3)" class="glass-card glass-card-interactive p-6 rounded-2xl cursor-pointer text-center space-y-4 relative overflow-hidden group">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-purple-500/20 flex items-center justify-center text-3xl text-purple-300 group-hover:scale-110 transition duration-300">💌</div>
+                    <div>
+                        <span class="text-[10px] uppercase tracking-wider text-romantic-gold font-semibold">Surat #3</span>
+                        <h3 class="font-serif text-xl font-semibold text-white mt-1">Our Future Promises</h3>
+                        <p class="text-xs text-slate-400 mt-2">Janji-janji kecil yang akan selalu aku jaga untukmu...</p>
+                    </div>
+                    <span class="inline-block text-xs text-romantic-softPink font-medium underline pt-2">Klik Untuk Membaca →</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- COUPLE BUCKET LIST -->
+        <section class="glass-card rounded-3xl p-6 md:p-10 space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <span class="text-xs uppercase tracking-widest text-romantic-gold font-semibold">Target Masa Depan</span>
+                    <h2 class="font-serif text-3xl md:text-4xl font-semibold text-white">Couple Bucket List 🎯</h2>
+                    <p class="text-sm text-slate-300">Daftar impian dan kencan seru yang ingin kita lakukan bersama.</p>
+                </div>
+                <div class="flex space-x-2">
+                    <input id="newBucketInput" type="text" placeholder="Tambah impian baru..." class="bg-black/40 border border-white/10 text-white placeholder-slate-500 text-sm px-4 py-2 rounded-xl focus:outline-none focus:border-romantic-rose">
+                    <button onclick="addBucketItem()" class="bg-romantic-rose hover:bg-pink-600 text-white font-medium px-4 py-2 rounded-xl text-sm transition">Tambah</button>
+                </div>
+            </div>
+
+            <div id="bucketListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="text-center text-xs text-slate-500 py-6">
+            Created with ❤️ for Our Forever Love Story • <span id="currentYear"></span>
+        </footer>
+    </div>
+
+    <!-- MODAL POPUP FOTO DETAIL -->
+    <div id="photoModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card max-w-2xl w-full rounded-3xl overflow-hidden p-6 relative space-y-4">
+            <button onclick="closePhotoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">✕</button>
+            <div class="h-72 md:h-96 rounded-2xl overflow-hidden bg-black/50">
+                <img id="modalImg" src="" alt="Memory" class="w-full h-full object-cover">
+            </div>
+            <div>
+                <div class="flex items-center justify-between text-xs text-romantic-gold font-semibold">
+                    <span id="modalDate">14 Feb 2024</span>
+                    <span id="modalLoc">📍 Bali, Indonesia</span>
+                </div>
+                <h3 id="modalTitle" class="font-serif text-2xl font-bold text-white mt-1">Judul Momen</h3>
+                <p id="modalDesc" class="text-sm text-slate-300 mt-2">Deskripsi cerita manis...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL POPUP TAMBAH FOTO BARU -->
+    <div id="addPhotoModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card max-w-md w-full rounded-3xl p-6 relative space-y-4">
+            <button onclick="closeAddPhotoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
+            <h3 class="font-serif text-2xl font-bold text-white">Tambah Kenangan Baru 📸</h3>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-300 mb-1">Judul Momen</label>
+                    <input id="inputPhotoTitle" type="text" placeholder="Kencan Pertama" class="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:border-romantic-rose outline-none">
+                </div>
+                <div>
+                    <label class="block text-slate-300 mb-1">URL Foto (Link Gambar)</label>
+                    <input id="inputPhotoUrl" type="text" placeholder="https://images.unsplash.com/..." class="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:border-romantic-rose outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-slate-300 mb-1">Tanggal</label>
+                        <input id="inputPhotoDate" type="text" placeholder="14 Feb 2024" class="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:border-romantic-rose outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 mb-1">Lokasi</label>
+                        <input id="inputPhotoLoc" type="text" placeholder="Bandung" class="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:border-romantic-rose outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-slate-300 mb-1">Pesan / Cerita Singkat</label>
+                    <textarea id="inputPhotoDesc" rows="3" placeholder="Ceritakan momen manis ini..." class="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:border-romantic-rose outline-none"></textarea>
+                </div>
+                <button onclick="saveNewPhotoMemory()" class="w-full bg-gradient-to-r from-romantic-rose to-pink-600 hover:from-pink-600 hover:to-romantic-rose text-white font-semibold py-3 rounded-xl transition">
+                    Simpan Kenangan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL POPUP SURAT RAHASIA -->
+    <div id="letterModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[#fefae0] text-slate-800 max-w-xl w-full rounded-3xl p-6 md:p-10 relative space-y-4 shadow-2xl border-4 border-[#e9edc9] max-h-[90vh] overflow-y-auto">
+            <button onclick="closeLetterModal()" class="absolute top-4 right-4 text-slate-500 hover:text-black text-xl">✕</button>
+            <div class="text-center border-b border-amber-200 pb-4">
+                <span id="letterHeaderTag" class="text-xs uppercase tracking-widest text-amber-700 font-bold">Surat Cinta Rahasia</span>
+                <h3 id="letterTitle" class="font-serif text-3xl font-bold text-amber-900 mt-1">Open When You Miss Me</h3>
+            </div>
+            <div id="letterContent" class="font-serif italic text-lg leading-relaxed text-amber-950 space-y-4 pt-2"></div>
+            <div class="text-right pt-6 font-cursive text-3xl text-amber-900 border-t border-amber-200">
+                Dengan Seluruh Cintaku ❤️
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIKA JAVASCRIPT PERBARUAN (DENGAN LOCALSTORAGE) -->
+    <script>
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+        // Data Default (jika belum ada data tersimpan di LocalStorage)
+        const DEFAULT_NAMES = "Romeo & Juliet";
+        const DEFAULT_START_DATE = '2023-02-14T00:00:00';
+        const DEFAULT_PHOTOS = [
+            {
+                id: 1,
+                title: "Kencan Pertama di Taman",
+                date: "14 Feb 2023",
+                location: "Taman Kota",
+                url: "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=800&q=80",
+                desc: "Hari di mana senyumanmu pertama kali meluluhkan hatiku. Kita mengobrol sampai lupa waktu."
+            },
+            {
+                id: 2,
+                title: "Melihat Sunset Bersama",
+                date: "20 Mei 2023",
+                location: "Pantai Indah",
+                url: "https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=800&q=80",
+                desc: "Langit jingga dan angin sore yang sejuk. Terima kasih sudah selalu menggenggam tanganku."
+            },
+            {
+                id: 3,
+                title: "Perayaan Ulang Tahun",
+                date: "10 Okt 2023",
+                location: "Restoran Favorit",
+                url: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=800&q=80",
+                desc: "Kejutan kecil manis dan kue favoritmu. Melihat tawamu adalah hadiah terbaik bagiku."
+            }
+        ];
+        const DEFAULT_BUCKET = [
+            { id: 1, text: "Piknik sore santai di taman kota", done: true },
+            { id: 2, text: "Stargazing dan ngobrol semalaman", done: false },
+            { id: 3, text: "Masak resep pasta baru bareng", done: true },
+            { id: 4, text: "Liburan singkat ke pantai pulau impian", done: false }
+        ];
+
+        // Memuat Data dari LocalStorage
+        let coupleNames = localStorage.getItem('sanctuary_coupleNames') || DEFAULT_NAMES;
+        let startDateStr = localStorage.getItem('sanctuary_startDate') || DEFAULT_START_DATE;
+        let startDate = new Date(startDateStr);
+
+        let photoMemories = JSON.parse(localStorage.getItem('sanctuary_photos')) || DEFAULT_PHOTOS;
+        let bucketList = JSON.parse(localStorage.getItem('sanctuary_bucket')) || DEFAULT_BUCKET;
+
+        // Inisialisasi Tampilan Awal berdasarkan Data Tersimpan
+        document.getElementById('coupleNames').textContent = coupleNames;
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('startDateDisplay').textContent = startDate.toLocaleDateString('id-ID', options);
+
+        /* TIMING & COUNTER LOGIC */
+        function updateCounter() {
+            const now = new Date();
+            const diff = now - startDate;
+
+            if (diff < 0) {
+                document.getElementById('daysCount').textContent = "00";
+                document.getElementById('hoursCount').textContent = "00";
+                document.getElementById('minutesCount').textContent = "00";
+                document.getElementById('secondsCount').textContent = "00";
+                return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+            const minutes = Math.floor((diff / (1000 * 60)) % 60);
+            const seconds = Math.floor((diff / 1000) % 60);
+
+            document.getElementById('daysCount').textContent = String(days).padStart(2, '0');
+            document.getElementById('hoursCount').textContent = String(hours).padStart(2, '0');
+            document.getElementById('minutesCount').textContent = String(minutes).padStart(2, '0');
+            document.getElementById('secondsCount').textContent = String(seconds).padStart(2, '0');
+        }
+
+        setInterval(updateCounter, 1000);
+        updateCounter();
+
+        function editNames() {
+            const current = document.getElementById('coupleNames').textContent.trim();
+            const newNames = prompt("Masukkan Nama Pasangan (contoh: Romeo & Juliet):", current);
+            if (newNames && newNames.trim() !== "") {
+                const formatted = newNames.trim();
+                document.getElementById('coupleNames').textContent = formatted;
+                localStorage.setItem('sanctuary_coupleNames', formatted);
+            }
+        }
+
+        function editStartDate() {
+            const input = prompt("Masukkan tanggal jadian (Format: YYYY-MM-DD):", startDateStr.split('T')[0]);
+            if (input) {
+                const parsed = new Date(input + "T00:00:00");
+                if (!isNaN(parsed.getTime())) {
+                    startDate = parsed;
+                    startDateStr = input + "T00:00:00";
+                    localStorage.setItem('sanctuary_startDate', startDateStr);
+                    document.getElementById('startDateDisplay').textContent = parsed.toLocaleDateString('id-ID', options);
+                    updateCounter();
+                } else {
+                    alert("Format tanggal tidak valid. Gunakan YYYY-MM-DD.");
+                }
+            }
+        }
+
+        /* PARTIKEL MELAYANG BACKGROUND */
+        const pCanvas = document.getElementById('particleCanvas');
+        const pCtx = pCanvas.getContext('2d');
+        let particles = [];
+
+        function resizeParticleCanvas() {
+            pCanvas.width = window.innerWidth;
+            pCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeParticleCanvas);
+        resizeParticleCanvas();
+
+        class FloatingParticle {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * pCanvas.width;
+                this.y = pCanvas.height + Math.random() * 100;
+                this.size = Math.random() * 4 + 2;
+                this.speedY = Math.random() * 1 + 0.3;
+                this.speedX = Math.sin(Math.random() * Math.PI) * 0.5;
+                this.opacity = Math.random() * 0.6 + 0.2;
+                this.type = Math.random() > 0.4 ? 'petal' : 'heart';
+                this.rotation = Math.random() * 360;
+                this.rotSpeed = (Math.random() - 0.5) * 2;
+            }
+            update() {
+                this.y -= this.speedY;
+                this.x += Math.sin(this.y * 0.01) * 0.5 + this.speedX;
+                this.rotation += this.rotSpeed;
+                if (this.y < -20) this.reset();
+            }
+            draw() {
+                pCtx.save();
+                pCtx.translate(this.x, this.y);
+                pCtx.rotate((this.rotation * Math.PI) / 180);
+                pCtx.globalAlpha = this.opacity;
+
+                if (this.type === 'heart') {
+                    pCtx.fillStyle = '#ff4d6d';
+                    pCtx.beginPath();
+                    const topCurveHeight = this.size * 0.3;
+                    pCtx.moveTo(0, topCurveHeight);
+                    pCtx.bezierCurveTo(0, 0, -this.size / 2, 0, -this.size / 2, topCurveHeight);
+                    pCtx.bezierCurveTo(-this.size / 2, (this.size + topCurveHeight) / 2, 0, this.size, 0, this.size);
+                    pCtx.bezierCurveTo(0, this.size, this.size / 2, (this.size + topCurveHeight) / 2, this.size / 2, topCurveHeight);
+                    pCtx.bezierCurveTo(this.size / 2, 0, 0, 0, 0, topCurveHeight);
+                    pCtx.closePath();
+                    pCtx.fill();
+                } else {
+                    pCtx.fillStyle = '#f3a6b3';
+                    pCtx.beginPath();
+                    pCtx.ellipse(0, 0, this.size, this.size * 1.8, 0, 0, Math.PI * 2);
+                    pCtx.fill();
+                }
+                pCtx.restore();
+            }
+        }
+
+        for (let i = 0; i < 40; i++) particles.push(new FloatingParticle());
+
+        function animateParticles() {
+            pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        /* ANIMASI BUNGA MEKAR (CANVAS) */
+        const fCanvas = document.getElementById('flowerCanvas');
+        const fCtx = fCanvas.getContext('2d');
+        let bloomProgress = 0;
+        let isBlooming = false;
+
+        function resizeFlowerCanvas() {
+            const rect = fCanvas.parentElement.getBoundingClientRect();
+            fCanvas.width = rect.width;
+            fCanvas.height = rect.height;
+            drawFlower(bloomProgress);
+        }
+        window.addEventListener('resize', resizeFlowerCanvas);
+
+        function drawFlower(progress) {
+            const w = fCanvas.width;
+            const h = fCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2 + 30;
+
+            fCtx.clearRect(0, 0, w, h);
+
+            fCtx.strokeStyle = '#2d6a4f';
+            fCtx.lineWidth = 6;
+            fCtx.beginPath();
+            fCtx.moveTo(cx, cy + 120);
+            fCtx.quadraticCurveTo(cx - 20, cy + 60, cx, cy);
+            fCtx.stroke();
+
+            const leafScale = Math.min(1, progress * 1.5);
+            fCtx.fillStyle = '#40916c';
+            fCtx.beginPath();
+            fCtx.ellipse(cx - 25 * leafScale, cy + 50, 20 * leafScale, 8 * leafScale, -Math.PI / 4, 0, Math.PI * 2);
+            fCtx.fill();
+            fCtx.beginPath();
+            fCtx.ellipse(cx + 25 * leafScale, cy + 30, 20 * leafScale, 8 * leafScale, Math.PI / 4, 0, Math.PI * 2);
+            fCtx.fill();
+
+            const petalLayers = 3;
+            for (let layer = petalLayers; layer >= 1; layer--) {
+                const petalCount = 5 + layer * 3;
+                const radius = (40 - layer * 8) * (0.2 + progress * 0.8);
+                const angleStep = (Math.PI * 2) / petalCount;
+
+                for (let i = 0; i < petalCount; i++) {
+                    const angle = i * angleStep + (layer * 0.2);
+                    const px = cx + Math.cos(angle) * radius * progress;
+                    const py = cy + Math.sin(angle) * radius * progress;
+
+                    fCtx.save();
+                    fCtx.translate(px, py);
+                    fCtx.rotate(angle + Math.PI / 2);
+
+                    const petalGradient = fCtx.createLinearGradient(0, -20, 0, 20);
+                    if (layer === 1) {
+                        petalGradient.addColorStop(0, '#ff758f');
+                        petalGradient.addColorStop(1, '#ff4d6d');
+                    } else if (layer === 2) {
+                        petalGradient.addColorStop(0, '#ff4d6d');
+                        petalGradient.addColorStop(1, '#c9184a');
+                    } else {
+                        petalGradient.addColorStop(0, '#a4133c');
+                        petalGradient.addColorStop(1, '#590d22');
+                    }
+
+                    fCtx.fillStyle = petalGradient;
+                    fCtx.beginPath();
+                    fCtx.ellipse(0, 0, 14 * progress, (22 - layer * 3) * progress, 0, 0, Math.PI * 2);
+                    fCtx.fill();
+                    fCtx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+                    fCtx.lineWidth = 1;
+                    fCtx.stroke();
+                    fCtx.restore();
+                }
+            }
+
+            if (progress > 0.5) {
+                const centerScale = (progress - 0.5) * 2;
+                fCtx.fillStyle = '#ffd700';
+                fCtx.beginPath();
+                fCtx.arc(cx, cy, 10 * centerScale, 0, Math.PI * 2);
+                fCtx.fill();
+
+                fCtx.fillStyle = '#ffffff';
+                for (let s = 0; s < 6; s++) {
+                    const sa = (s * Math.PI) / 3 + progress * 2;
+                    const sx = cx + Math.cos(sa) * 16 * centerScale;
+                    const sy = cy + Math.sin(sa) * 16 * centerScale;
+                    fCtx.beginPath();
+                    fCtx.arc(sx, sy, 2 * centerScale, 0, Math.PI * 2);
+                    fCtx.fill();
+                }
+            }
+        }
+
+        function triggerBloom(reset = false) {
+            if (reset) bloomProgress = 0;
+            if (isBlooming) return;
+            isBlooming = true;
+
+            const quote = document.getElementById('flowerQuote');
+            quote.classList.add('opacity-0');
+
+            let anim = setInterval(() => {
+                bloomProgress += 0.02;
+                drawFlower(bloomProgress);
+
+                if (bloomProgress >= 1) {
+                    bloomProgress = 1;
+                    clearInterval(anim);
+                    isBlooming = false;
+                    quote.classList.remove('opacity-0');
+                    spawnHeartExplosion(window.innerWidth / 2, window.innerHeight / 2);
+                }
+            }, 30);
+        }
+
+        fCanvas.addEventListener('click', () => triggerBloom(true));
+        setTimeout(() => resizeFlowerCanvas(), 100);
+
+        /* MUSIK SINTETIS WEB AUDIO */
+        let audioCtx = null;
+        let isAudioPlaying = false;
+        let ambientInterval = null;
+
+        function toggleRomanticMusic() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            const btnText = document.getElementById('musicText');
+            const btnIcon = document.getElementById('musicIcon');
+
+            if (isAudioPlaying) {
+                clearInterval(ambientInterval);
+                isAudioPlaying = false;
+                btnText.textContent = "Putar Musik Romantis";
+                btnIcon.textContent = "🎵";
+            } else {
+                audioCtx.resume();
+                isAudioPlaying = true;
+                btnText.textContent = "Hentikan Musik";
+                btnIcon.textContent = "🎶";
+                playRomanticChord();
+                ambientInterval = setInterval(playRomanticChord, 4000);
+            }
+        }
+
+        function playRomanticChord() {
+            if (!isAudioPlaying || !audioCtx) return;
+            const chordFreqs = [
+                [261.63, 329.63, 392.00, 523.25],
+                [220.00, 261.63, 329.63, 440.00],
+                [349.23, 440.00, 523.25, 698.46]
+            ];
+            const chosenChord = chordFreqs[Math.floor(Math.random() * chordFreqs.length)];
+
+            chosenChord.forEach((freq, index) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 1 + index * 0.2);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 3.8);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + index * 0.15);
+                osc.stop(audioCtx.currentTime + 4);
+            });
+        }
+
+        function sendMissYouPing() {
+            showNotification("Doi baru saja memencet tombol Kangen! 🥰 Seseorang sedang memikirkanmu.");
+            playChimeSound();
+            spawnHeartExplosion(window.innerWidth / 2, window.innerHeight / 2);
+        }
+
+        function showNotification(msg) {
+            const container = document.getElementById('notificationContainer');
+            const text = document.getElementById('notifText');
+            text.textContent = msg;
+            container.classList.remove('hidden');
+            setTimeout(() => hideNotification(), 5000);
+        }
+
+        function hideNotification() {
+            document.getElementById('notificationContainer').classList.add('hidden');
+        }
+
+        function playChimeSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            audioCtx.resume();
+
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((freq, idx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime + idx * 0.12);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.12 + 0.8);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + idx * 0.12);
+                osc.stop(audioCtx.currentTime + idx * 0.12 + 0.8);
+            });
+        }
+
+        function spawnHeartExplosion(x, y) {
+            for (let i = 0; i < 20; i++) {
+                const heart = document.createElement('div');
+                heart.innerHTML = '💖';
+                heart.className = 'fixed text-2xl pointer-events-none z-50 transition-all duration-1000 ease-out';
+                heart.style.left = `${x}px`;
+                heart.style.top = `${y}px`;
+                document.body.appendChild(heart);
+
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * 150 + 50;
+                const tx = Math.cos(angle) * dist;
+                const ty = Math.sin(angle) * dist - 80;
+
+                setTimeout(() => {
+                    heart.style.transform = `translate(${tx}px, ${ty}px) scale(${Math.random() * 1.5 + 0.5})`;
+                    heart.style.opacity = '0';
+                }, 20);
+
+                setTimeout(() => heart.remove(), 1050);
+            }
+        }
+
+        /* MANAJEMEN FOTO KENANGAN (WITH LOCALSTORAGE) */
+        function renderPhotoGallery() {
+            const grid = document.getElementById('photoGrid');
+            grid.innerHTML = '';
+
+            photoMemories.forEach(mem => {
+                const card = document.createElement('div');
+                card.className = "glass-card glass-card-interactive rounded-2xl p-4 cursor-pointer space-y-3 group";
+                card.onclick = () => openPhotoModal(mem);
+
+                card.innerHTML = `
+                    <div class="h-48 rounded-xl overflow-hidden bg-black/40 relative">
+                        <img src="${mem.url}" alt="${mem.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-[10px] text-romantic-gold">
+                            ${mem.date}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-400 font-medium">📍 ${mem.location}</span>
+                        <h4 class="font-serif text-lg font-bold text-white group-hover:text-romantic-rose transition">${mem.title}</h4>
+                        <p class="text-xs text-slate-300 line-clamp-2 mt-1">${mem.desc}</p>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+        renderPhotoGallery();
+
+        function openPhotoModal(mem) {
+            document.getElementById('modalImg').src = mem.url;
+            document.getElementById('modalTitle').textContent = mem.title;
+            document.getElementById('modalDate').textContent = mem.date;
+            document.getElementById('modalLoc').textContent = `📍 ${mem.location}`;
+            document.getElementById('modalDesc').textContent = mem.desc;
+            document.getElementById('photoModal').classList.remove('hidden');
+        }
+
+        function closePhotoModal() { document.getElementById('photoModal').classList.add('hidden'); }
+        function openAddPhotoModal() { document.getElementById('addPhotoModal').classList.remove('hidden'); }
+        function closeAddPhotoModal() { document.getElementById('addPhotoModal').classList.add('hidden'); }
+
+        function saveNewPhotoMemory() {
+            const title = document.getElementById('inputPhotoTitle').value.trim();
+            const url = document.getElementById('inputPhotoUrl').value.trim();
+            const date = document.getElementById('inputPhotoDate').value.trim();
+            const location = document.getElementById('inputPhotoLoc').value.trim();
+            const desc = document.getElementById('inputPhotoDesc').value.trim();
+
+            if (!title || !url) { alert("Mohon isi minimal Judul dan URL Foto!"); return; }
+
+            photoMemories.unshift({
+                id: Date.now(), title, url,
+                date: date || "Hari Ini",
+                location: location || "Indonesia",
+                desc: desc || "Momen spesial bersama."
+            });
+
+            localStorage.setItem('sanctuary_photos', JSON.stringify(photoMemories));
+
+            renderPhotoGallery();
+            closeAddPhotoModal();
+
+            document.getElementById('inputPhotoTitle').value = '';
+            document.getElementById('inputPhotoUrl').value = '';
+            document.getElementById('inputPhotoDate').value = '';
+            document.getElementById('inputPhotoLoc').value = '';
+            document.getElementById('inputPhotoDesc').value = '';
+        }
+
+        /* MANAJEMEN SURAT RAHASIA */
+        function openLetter(id) {
+            const letterModal = document.getElementById('letterModal');
+            const title = document.getElementById('letterTitle');
+            const content = document.getElementById('letterContent');
+            const headerTag = document.getElementById('letterHeaderTag');
+
+            if (id === 1) {
+                headerTag.textContent = "Surat #1 • Open When You Miss Me";
+                title.textContent = "Saat Kamu Merindukanku";
+                content.innerHTML = `
+                    <p>Halo Sayang,</p>
+                    <p>Kalau kamu lagi baca surat ini, berarti kamu lagi kangen banget ya sama aku? Ingat ya, jarak atau kesibukan sejauh apa pun gak akan pernah mengurangi rasa sayangku ke kamu.</p>
+                    <p>Coba pejamkan matamu sebentar, tarik napas dalam-dalam, dan bayangkan aku lagi memelukmu erat. Aku selalu di sini untukmu, kapan pun kamu butuh tempat untuk pulang.</p>
+                `;
+                letterModal.classList.remove('hidden');
+            } else if (id === 2) {
+                const pass = prompt("Masukkan tanggal jadian kita (DDMM, contoh: 1402):");
+                if (pass === "1402" || pass === "14feb" || pass === "140223" || pass === "14") {
+                    headerTag.textContent = "Surat #2 • Open When You Feel Sad";
+                    title.textContent = "Saat Hatimu Sedang Sedih";
+                    content.innerHTML = `
+                        <p>Sayangku,</p>
+                        <p>Tidak apa-apa kalau hari ini terasa berat. Kamu gak harus selalu kuat setiap saat di depanku. Menangis atau merasa lelah itu sangat manusiawi.</p>
+                        <p>Ingatlah bahwa kamu tidak sendirian. Kita adalah tim, dan aku akan selalu ada di sampingmu untuk melewati badai terhebat sekalipun. Senyum manis pencerah hariku akan segera kembali, aku yakin itu!</p>
+                    `;
+                    letterModal.classList.remove('hidden');
+                } else {
+                    alert("Kata sandi salah! Petunjuk: Coba masukkan 1402.");
+                }
+            } else if (id === 3) {
+                headerTag.textContent = "Surat #3 • Our Future Promises";
+                title.textContent = "Janji Masa Depan Kita";
+                content.innerHTML = `
+                    <p>Untuk Teman Hidupku,</p>
+                    <p>Aku berjanji akan selalu mendengarkan ceritamu, mendukung setiap impianmu, dan menjadi orang pertama yang bertepuk tangan saat kamu berhasil.</p>
+                    <p>Terima kasih telah memilihku menjadi bagian dari perjalanan hidupmu. Mari kita ukir ribuan kenangan indah lainnya bersama-sama!</p>
+                `;
+                letterModal.classList.remove('hidden');
+            }
+        }
+
+        function closeLetterModal() { document.getElementById('letterModal').classList.add('hidden'); }
+
+        /* MANAJEMEN BUCKET LIST (WITH LOCALSTORAGE) */
+        function renderBucketList() {
+            const container = document.getElementById('bucketListContainer');
+            container.innerHTML = '';
+
+            bucketList.forEach(item => {
+                const el = document.createElement('div');
+                el.className = `p-4 rounded-2xl border flex items-center justify-between transition ${
+                    item.done 
+                    ? 'bg-romantic-rose/10 border-romantic-rose/30 text-slate-300' 
+                    : 'bg-black/30 border-white/10 text-white'
+                }`;
+
+                el.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <button onclick="toggleBucket(${item.id})" class="w-6 h-6 rounded-lg flex items-center justify-center border ${
+                            item.done 
+                            ? 'bg-romantic-rose border-romantic-rose text-white' 
+                            : 'border-white/30 hover:border-romantic-rose'
+                        }">
+                            ${item.done ? '✓' : ''}
+                        </button>
+                        <span class="text-sm ${item.done ? 'line-through text-slate-400' : 'font-medium'}">${item.text}</span>
+                    </div>
+                    <button onclick="deleteBucket(${item.id})" class="text-xs text-slate-500 hover:text-red-400">✕</button>
+                `;
+                container.appendChild(el);
+            });
+        }
+        renderBucketList();
+
+        function toggleBucket(id) {
+            const found = bucketList.find(i => i.id === id);
+            if (found) {
+                found.done = !found.done;
+                if (found.done) spawnHeartExplosion(window.innerWidth / 2, window.innerHeight / 2);
+                localStorage.setItem('sanctuary_bucket', JSON.stringify(bucketList));
+                renderBucketList();
+            }
+        }
+
+        function addBucketItem() {
+            const input = document.getElementById('newBucketInput');
+            const val = input.value.trim();
+            if (val) {
+                bucketList.push({ id: Date.now(), text: val, done: false });
+                localStorage.setItem('sanctuary_bucket', JSON.stringify(bucketList));
+                input.value = '';
+                renderBucketList();
+            }
+        }
+
+        function deleteBucket(id) {
+            bucketList = bucketList.filter(i => i.id !== id);
+            localStorage.setItem('sanctuary_bucket', JSON.stringify(bucketList));
+            renderBucketList();
+        }
+    </script>
+</body>
+</html>
