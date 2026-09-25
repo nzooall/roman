@@ -407,7 +407,7 @@
             },
             {
                 id: 3,
-                title: "Perayaan Ulang Tahun",
+                title: "Momen Di Photobooth",
                 date: "09 Agustus 2026",
                 location: "Bcs Mall Batam",
                 url: "https://images.unsplash.com/photo-1790362472270-49d0e741286b?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
@@ -415,8 +415,8 @@
             }
         ];
         const DEFAULT_BUCKET = [
-            { id: 1, text: "Piknik sore santai di taman kota", done: true },
-            { id: 2, text: "Stargazing dan ngobrol semalaman", done: false },
+            { id: 1, text: "kelilingi Gm", done: true },
+            { id: 2, text: "Stargazing dan ngobrol semalaman", done: true },
             { id: 3, text: "Masak resep pasta baru bareng", done: true },
             { id: 4, text: "Liburan singkat ke pantai pulau impian", done: false }
         ];
@@ -872,12 +872,12 @@
                 `;
                 letterModal.classList.remove('hidden');
             } else if (id === 2) {
-                const pass = prompt("Masukkan tanggal jadian kita (DDMM, contoh: 1402):");
-                if (pass === "1402" || pass === "14feb" || pass === "140223" || pass === "14") {
+                const pass = prompt("Masukkan tanggal lahir kamu (DDMM, contoh: 1402):");
+                if (pass === "1006" || pass === "10jun" || pass === "0505" || pass === "15") {
                     headerTag.textContent = "Surat #2 • Open When You Feel Sad";
                     title.textContent = "Saat Hatimu Sedang Sedih";
                     content.innerHTML = `
-                        <p>Sayangku,</p>
+                        <p>Hai Sayang,</p>
                         <p>Tidak apa-apa kalau hari ini terasa berat. Kamu gak harus selalu kuat setiap saat di depanku. Menangis atau merasa lelah itu sangat manusiawi.</p>
                         <p>Ingatlah bahwa kamu tidak sendirian. Kita adalah tim, dan aku akan selalu ada di sampingmu untuk melewati badai terhebat sekalipun. Senyum manis pencerah hariku akan segera kembali, aku yakin itu!</p>
                     `;
@@ -887,11 +887,12 @@
                 }
             } else if (id === 3) {
                 headerTag.textContent = "Surat #3 • Our Future Promises";
-                title.textContent = "Janji Masa Depan Kita";
+                title.textContent = "Distance in words, not in stories";
                 content.innerHTML = `
-                    <p>Untuk Teman Hidupku,</p>
-                    <p>Aku berjanji akan selalu mendengarkan ceritamu, mendukung setiap impianmu, dan menjadi orang pertama yang bertepuk tangan saat kamu berhasil.</p>
-                    <p>Terima kasih telah memilihku menjadi bagian dari perjalanan hidupmu. Mari kita ukir ribuan kenangan indah lainnya bersama-sama!</p>
+                    <p>Untuk Kamu,</p>
+                    <p>Kita sama-sama tahu ada batasan yang nggak bisa kita paksakan. Tapi terima kasih ya, sudah pernah jadi bagian paling hangat dalam perjalanan hidupku.
+                        Ke depannya, walau jalan kita mungkin nggak sejajar, aku bakal tetap jadi orang yang selalu bangga dan mendoakan hal-hal baik buat semua impian kamu.</p>
+                    <p>Makasih untuk semua cerita dan tawa yang pernah kita bagi. Semoga bahagia selalu menyertai jalanmu.</p>
                 `;
                 letterModal.classList.remove('hidden');
             }
