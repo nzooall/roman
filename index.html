@@ -136,19 +136,19 @@
     </div>
 
     <!-- Container Notifikasi Pop-up -->
-    <div id="notificationContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md hidden">
-        <div class="toast-notification bg-slate-900/95 border border-romantic-rose/60 p-4 rounded-2xl shadow-2xl backdrop-blur-xl flex items-center space-x-4">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-romantic-rose to-romantic-gold flex items-center justify-center text-2xl shrink-0 animate-bounce">
+    <div id="notificationContainer" class="fixed top-4 inset-x-4 z-50 max-w-md mx-auto hidden">
+        <div class="toast-notification bg-slate-900/95 border border-romantic-rose/60 p-3 md:p-4 rounded-2xl shadow-2xl backdrop-blur-xl flex items-center space-x-3 md:space-x-4">
+            <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-tr from-romantic-rose to-romantic-gold flex items-center justify-center text-xl md:text-2x1 shrink-0 animate-bounce">
                 💖
             </div>
             <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between mb-1">
-                    <h4 class="text-xs font-semibold uppercase tracking-wider text-romantic-gold">Sinyal Masuk!</h4>
-                    <span class="text-[10px] text-slate-400">Baru Saja</span>
+                <div class="flex items-center justify-between mb-0.5">
+                    <h4 class="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-romantic-gold">Sinyal Masuk!</h4>
+                    <span class="text-[9px] md:text-[10px] text-slate-400 shrink-0 ml-2">Baru Saja</span>
                 </div>
-                <p id="notifText" class="text-sm font-medium text-slate-100 truncate">Doi lagi kangen sama kamu sekarang!</p>
+                <p id="notifText" class="text-xs md:text-sm font-medium text-slate-100 leading-snug break-words">ada yang kangen yee</p>
             </div>
-            <button onclick="hideNotification()" class="text-slate-400 hover:text-white p-1">
+            <button onclick="hideNotification()" class="text-slate-400 hover:text-white p-1 text-base leading-none shrink-0">
                 ✕
             </button>
         </div>
