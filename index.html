@@ -336,6 +336,9 @@
     <div id="photoModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
         <div class="glass-card max-w-2xl w-full rounded-3xl overflow-hidden p-6 relative space-y-4">
             <button onclick="closePhotoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">✕</button>
+            <button onclick="openEditPhotoModal()" class="absolute top-4 right-14 text-xs text-slate-300 hover:text-romantic-gold bg-black/40 px-3 py-1.5 rounded-lg border border-white/10 flex items-center space-x-1">
+                <span>✏️</span><span>Edit</span>
+            </button>
             <div class="h-72 md:h-96 rounded-2xl overflow-hidden bg-black/50">
                 <img id="modalImg" src="" alt="Memory" class="w-full h-full object-cover">
             </div>
@@ -354,7 +357,7 @@
     <div id="addPhotoModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
         <div class="glass-card max-w-md w-full rounded-3xl p-6 relative space-y-4">
             <button onclick="closeAddPhotoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
-            <h3 class="font-serif text-2xl font-bold text-white">Tambah Kenangan Baru 📸</h3>
+            <h3 id="photoModalFormTitle" class="font-serif text-2xl font-bold text-white">Tambah Kenangan Baru 📸</h3>
             <div class="space-y-3 text-xs">
                 <div>
                     <label class="block text-slate-300 mb-1">Judul Momen</label>
@@ -378,7 +381,7 @@
                     <label class="block text-slate-300 mb-1">Pesan / Cerita Singkat</label>
                     <textarea id="inputPhotoDesc" rows="3" placeholder="Ceritakan momen manis ini..." class="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:border-romantic-rose outline-none"></textarea>
                 </div>
-                <button onclick="saveNewPhotoMemory()" class="w-full bg-gradient-to-r from-romantic-rose to-pink-600 hover:from-pink-600 hover:to-romantic-rose text-white font-semibold py-3 rounded-xl transition">
+                <button id="savePhotoBtn" onclick="savePhotoMemory()" class="w-full bg-gradient-to-r from-romantic-rose to-pink-600 hover:from-pink-600 hover:to-romantic-rose text-white font-semibold py-3 rounded-xl transition">
                     Simpan Kenangan
                 </button>
             </div>
@@ -405,34 +408,8 @@
         document.getElementById('currentYear').textContent = new Date().getFullYear();
 
         // Data Default (jika belum ada data tersimpan di LocalStorage)
-        const DEFAULT_NAMES = "Romeo & Juliet";
+        const DEFAULT_NAMES = "my romance website";
         const DEFAULT_START_DATE = '2023-02-14T00:00:00';
-        const DEFAULT_PHOTOS = [
-            {
-                id: 1,
-                title: "",
-                date: "",
-                location: "",
-                url: "",
-                desc: ""
-            },
-            {
-                id: 2,
-                title: "",
-                date: "",
-                location: "",
-                url: "",
-                desc: ""
-            },
-            {
-                id: 3,
-                title: "",
-                date: "",
-                location: "",
-                url: "",
-                desc: ""
-            }
-        ];
         const DEFAULT_BUCKET = [
             { id: 1, text: "kelilingi Gm", done: true },
             { id: 2, text: "Stargazing dan ngobrol semalaman", done: true },
@@ -461,13 +438,7 @@
                 bucketRef.set(seed);
             }
         });
-        photosRef.once('value').then(snap => {
-            if (!snap.exists()) {
-                const seed = {};
-                DEFAULT_PHOTOS.forEach(item => seed[item.id] = item);
-                photosRef.set(seed);
-            }
-        });
+        // Foto sengaja TIDAK di-seed — galeri mulai kosong, kamu isi sendiri lewat "+ Tambah Kenangan Baru".
 
         // Setiap ada perubahan di Firebase (dari HP manapun), tampilan diperbarui otomatis.
         bucketRef.on('value', snapshot => {
@@ -866,6 +837,7 @@
         }
 
         function openPhotoModal(mem) {
+            currentModalMem = mem;
             document.getElementById('modalImg').src = mem.url;
             document.getElementById('modalTitle').textContent = mem.title;
             document.getElementById('modalDate').textContent = mem.date;
@@ -874,11 +846,44 @@
             document.getElementById('photoModal').classList.remove('hidden');
         }
 
+        let currentModalMem = null;
+        let editingPhotoId = null;
+
         function closePhotoModal() { document.getElementById('photoModal').classList.add('hidden'); }
-        function openAddPhotoModal() { document.getElementById('addPhotoModal').classList.remove('hidden'); }
+
+        function resetPhotoForm() {
+            editingPhotoId = null;
+            document.getElementById('photoModalFormTitle').textContent = 'Tambah Kenangan Baru 📸';
+            document.getElementById('savePhotoBtn').textContent = 'Simpan Kenangan';
+            document.getElementById('inputPhotoTitle').value = '';
+            document.getElementById('inputPhotoUrl').value = '';
+            document.getElementById('inputPhotoDate').value = '';
+            document.getElementById('inputPhotoLoc').value = '';
+            document.getElementById('inputPhotoDesc').value = '';
+        }
+
+        function openAddPhotoModal() {
+            resetPhotoForm();
+            document.getElementById('addPhotoModal').classList.remove('hidden');
+        }
+
+        function openEditPhotoModal() {
+            if (!currentModalMem) return;
+            editingPhotoId = currentModalMem.id;
+            document.getElementById('inputPhotoTitle').value = currentModalMem.title;
+            document.getElementById('inputPhotoUrl').value = currentModalMem.url;
+            document.getElementById('inputPhotoDate').value = currentModalMem.date;
+            document.getElementById('inputPhotoLoc').value = currentModalMem.location;
+            document.getElementById('inputPhotoDesc').value = currentModalMem.desc;
+            document.getElementById('photoModalFormTitle').textContent = 'Edit Kenangan ✏️';
+            document.getElementById('savePhotoBtn').textContent = 'Update Kenangan';
+            closePhotoModal();
+            document.getElementById('addPhotoModal').classList.remove('hidden');
+        }
+
         function closeAddPhotoModal() { document.getElementById('addPhotoModal').classList.add('hidden'); }
 
-        function saveNewPhotoMemory() {
+        function savePhotoMemory() {
             const title = document.getElementById('inputPhotoTitle').value.trim();
             const url = document.getElementById('inputPhotoUrl').value.trim();
             const date = document.getElementById('inputPhotoDate').value.trim();
@@ -887,21 +892,25 @@
 
             if (!title || !url) { alert("Mohon isi minimal Judul dan URL Foto!"); return; }
 
-            const id = Date.now();
-            photosRef.child(id).set({
-                id, title, url,
-                date: date || "Hari Ini",
-                location: location || "Indonesia",
-                desc: desc || "Momen spesial bersama."
-            });
+            if (editingPhotoId) {
+                photosRef.child(editingPhotoId).update({
+                    title, url,
+                    date: date || "Hari Ini",
+                    location: location || "Indonesia",
+                    desc: desc || "Momen spesial bersama."
+                });
+            } else {
+                const id = Date.now();
+                photosRef.child(id).set({
+                    id, title, url,
+                    date: date || "Hari Ini",
+                    location: location || "Indonesia",
+                    desc: desc || "Momen spesial bersama."
+                });
+            }
 
             closeAddPhotoModal();
-
-            document.getElementById('inputPhotoTitle').value = '';
-            document.getElementById('inputPhotoUrl').value = '';
-            document.getElementById('inputPhotoDate').value = '';
-            document.getElementById('inputPhotoLoc').value = '';
-            document.getElementById('inputPhotoDesc').value = '';
+            resetPhotoForm();
         }
 
         /* MANAJEMEN SURAT RAHASIA */
