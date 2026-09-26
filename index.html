@@ -12,6 +12,25 @@
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Firebase (dipakai supaya Bucket List & Galeri Foto sinkron real-time di semua HP) -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+    <script>
+        // GANTI seluruh isi object di bawah ini dengan config dari Firebase project kamu sendiri.
+        // Lihat panduan yang aku kasih di chat untuk cara ambil config ini.
+        const firebaseConfig = {
+            apiKey: "ISI_API_KEY_KAMU",
+            authDomain: "ISI_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://ISI_PROJECT_ID-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "ISI_PROJECT_ID",
+            storageBucket: "ISI_PROJECT_ID.appspot.com",
+            messagingSenderId: "ISI_SENDER_ID",
+            appId: "ISI_APP_ID"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+    </script>
     
     <script>
         tailwind.config = {
@@ -426,8 +445,41 @@
         let startDateStr = localStorage.getItem('sanctuary_startDate') || DEFAULT_START_DATE;
         let startDate = new Date(startDateStr);
 
-        let photoMemories = JSON.parse(localStorage.getItem('sanctuary_photos')) || DEFAULT_PHOTOS;
-        let bucketList = JSON.parse(localStorage.getItem('sanctuary_bucket')) || DEFAULT_BUCKET;
+        // Bucket List & Foto sekarang disimpan di Firebase (bukan localStorage lagi) supaya
+        // kedua HP lihat data yang sama. Array ini akan diisi otomatis oleh listener Firebase di bawah.
+        let photoMemories = [];
+        let bucketList = [];
+
+        const bucketRef = db.ref('bucketList');
+        const photosRef = db.ref('photoMemories');
+
+        // Kalau database masih kosong (pertama kali setup), isi dengan data default sekali saja.
+        bucketRef.once('value').then(snap => {
+            if (!snap.exists()) {
+                const seed = {};
+                DEFAULT_BUCKET.forEach(item => seed[item.id] = item);
+                bucketRef.set(seed);
+            }
+        });
+        photosRef.once('value').then(snap => {
+            if (!snap.exists()) {
+                const seed = {};
+                DEFAULT_PHOTOS.forEach(item => seed[item.id] = item);
+                photosRef.set(seed);
+            }
+        });
+
+        // Setiap ada perubahan di Firebase (dari HP manapun), tampilan diperbarui otomatis.
+        bucketRef.on('value', snapshot => {
+            const data = snapshot.val();
+            bucketList = data ? Object.values(data) : [];
+            renderBucketList();
+        });
+        photosRef.on('value', snapshot => {
+            const data = snapshot.val();
+            photoMemories = data ? Object.values(data).sort((a, b) => b.id - a.id) : [];
+            renderPhotoGallery();
+        });
 
         // Inisialisasi Tampilan Awal berdasarkan Data Tersimpan
         document.getElementById('coupleNames').textContent = coupleNames;
@@ -812,7 +864,6 @@
                 grid.appendChild(card);
             });
         }
-        renderPhotoGallery();
 
         function openPhotoModal(mem) {
             document.getElementById('modalImg').src = mem.url;
@@ -836,16 +887,14 @@
 
             if (!title || !url) { alert("Mohon isi minimal Judul dan URL Foto!"); return; }
 
-            photoMemories.unshift({
-                id: Date.now(), title, url,
+            const id = Date.now();
+            photosRef.child(id).set({
+                id, title, url,
                 date: date || "Hari Ini",
                 location: location || "Indonesia",
                 desc: desc || "Momen spesial bersama."
             });
 
-            localStorage.setItem('sanctuary_photos', JSON.stringify(photoMemories));
-
-            renderPhotoGallery();
             closeAddPhotoModal();
 
             document.getElementById('inputPhotoTitle').value = '';
@@ -929,15 +978,13 @@
                 container.appendChild(el);
             });
         }
-        renderBucketList();
 
         function toggleBucket(id) {
             const found = bucketList.find(i => i.id === id);
             if (found) {
-                found.done = !found.done;
-                if (found.done) spawnHeartExplosion(window.innerWidth / 2, window.innerHeight / 2);
-                localStorage.setItem('sanctuary_bucket', JSON.stringify(bucketList));
-                renderBucketList();
+                const newDone = !found.done;
+                if (newDone) spawnHeartExplosion(window.innerWidth / 2, window.innerHeight / 2);
+                bucketRef.child(id).update({ done: newDone });
             }
         }
 
@@ -945,17 +992,14 @@
             const input = document.getElementById('newBucketInput');
             const val = input.value.trim();
             if (val) {
-                bucketList.push({ id: Date.now(), text: val, done: false });
-                localStorage.setItem('sanctuary_bucket', JSON.stringify(bucketList));
+                const id = Date.now();
+                bucketRef.child(id).set({ id, text: val, done: false });
                 input.value = '';
-                renderBucketList();
             }
         }
 
         function deleteBucket(id) {
-            bucketList = bucketList.filter(i => i.id !== id);
-            localStorage.setItem('sanctuary_bucket', JSON.stringify(bucketList));
-            renderBucketList();
+            bucketRef.child(id).remove();
         }
     </script>
 </body>
