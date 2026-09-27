@@ -337,9 +337,10 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-[1fr,auto] gap-3">
-                <input id="newNoteText" type="text" placeholder="Tulis pesan di sini..." class="bg-black/40 border border-white/10 text-white placeholder-slate-500 text-sm px-4 py-3 rounded-xl focus:outline-none focus:border-romantic-rose">
+                <input id="newNoteTitle" type="text" placeholder="Judul notes (opsional)..." class="bg-black/40 border border-white/10 text-white placeholder-slate-500 text-sm px-4 py-3 rounded-xl focus:outline-none focus:border-romantic-rose">
                 <input id="newNoteAuthor" type="text" placeholder="By: nama kamu" class="bg-black/40 border border-white/10 text-white placeholder-slate-500 text-sm px-4 py-3 rounded-xl focus:outline-none focus:border-romantic-rose md:w-52">
             </div>
+            <textarea id="newNoteText" placeholder="Tulis pesan di sini..." rows="2" class="w-full bg-black/40 border border-white/10 text-white placeholder-slate-500 text-sm px-4 py-3 rounded-xl focus:outline-none focus:border-romantic-rose resize-y"></textarea>
             <button onclick="addNote()" class="bg-romantic-rose hover:bg-pink-600 text-white font-medium px-5 py-2.5 rounded-xl text-sm transition">Kirim Notes</button>
 
             <div id="notesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
@@ -428,9 +429,9 @@
             <button onclick="closeNoteModal()" class="absolute top-4 right-4 text-slate-500 hover:text-black text-xl">✕</button>
             <div class="text-center border-b border-amber-200 pb-4">
                 <span class="text-xs uppercase tracking-widest text-amber-700 font-bold">Coretan Hati</span>
-                <h3 class="font-serif text-3xl font-bold text-amber-900 mt-1">Notes 📝</h3>
+                <h3 id="noteModalTitle" class="font-serif text-3xl font-bold text-amber-900 mt-1 break-words">Notes 📝</h3>
             </div>
-            <div id="noteModalContent" class="font-serif italic text-lg leading-relaxed text-amber-950 space-y-4 pt-2"></div>
+            <div id="noteModalContent" class="font-serif italic text-lg leading-relaxed text-amber-950 space-y-4 pt-2 break-words whitespace-pre-wrap"></div>
             <div id="noteModalAuthor" class="text-right pt-6 font-cursive text-3xl text-amber-900 border-t border-amber-200"></div>
         </div>
     </div>
@@ -1057,10 +1058,11 @@
             notes.forEach(note => {
                 const el = document.createElement('div');
                 el.onclick = () => openNoteModal(note.id);
-                el.className = 'glass-card glass-card-interactive p-5 rounded-2xl cursor-pointer space-y-3 relative';
+                el.className = 'glass-card glass-card-interactive p-5 rounded-2xl cursor-pointer space-y-2 relative';
                 el.innerHTML = `
                     <button onclick="event.stopPropagation(); deleteNote(${note.id})" class="absolute top-3 right-3 text-xs text-slate-500 hover:text-red-400">✕</button>
-                    <p class="text-sm text-white line-clamp-3 pr-6">${note.text}</p>
+                    ${note.title ? `<p class="text-sm font-semibold text-white pr-6 break-words">${note.title}</p>` : ''}
+                    <p class="text-sm text-slate-300 line-clamp-3 pr-6 break-words">${note.text}</p>
                     <div class="flex items-center justify-between pt-1">
                         <p class="text-xs text-romantic-gold font-medium">— by: ${note.author}</p>
                         <span class="text-xs text-pink-300 font-semibold">Baca →</span>
@@ -1073,6 +1075,7 @@
         function openNoteModal(id) {
             const note = notes.find(n => n.id === id);
             if (!note) return;
+            document.getElementById('noteModalTitle').textContent = note.title || 'Notes 📝';
             document.getElementById('noteModalContent').innerHTML = `<p>${note.text}</p>`;
             document.getElementById('noteModalAuthor').textContent = `by: ${note.author}`;
             document.getElementById('noteModal').classList.remove('hidden');
@@ -1083,15 +1086,18 @@
         }
 
         function addNote() {
+            const titleInput = document.getElementById('newNoteTitle');
             const textInput = document.getElementById('newNoteText');
             const authorInput = document.getElementById('newNoteAuthor');
+            const title = titleInput.value.trim();
             const text = textInput.value.trim();
             const author = authorInput.value.trim();
             if (!text) return;
 
             const id = Date.now();
-            notesRef.child(id).set({ id, text, author: author || 'Anonim' });
+            notesRef.child(id).set({ id, title, text, author: author || 'Anonim' });
 
+            titleInput.value = '';
             textInput.value = '';
         }
 
