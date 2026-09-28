@@ -1076,6 +1076,11 @@
         function openNoteModal(id) {
             const note = notes.find(n => n.id === id);
             if (!note) return;
+
+            const d = new date(note.id);
+            const tanggal = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            const jam = d.toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false}).replace('.', ':');
+            
             document.getElementById('noteModalTitle').textContent = note.title || 'Notes 📝';
             document.getElementById('noteModalContent').innerHTML = `<p>${note.text}</p>`;
             document.getElementById('noteModalAuthor').textContent = `by: ${note.author}`;
