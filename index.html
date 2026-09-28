@@ -1073,15 +1073,26 @@
             });
         }
 
-        function openNoteModal(id) {
-            const note = notes.find(n => n.id === id);
+                function openNoteModal(id) {
+            const note = notes.find(n => String(n.id) === String(id));
             if (!note) return;
 
             const d = new Date(Number(note.id));
             const tanggal = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
             const jam = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }).replace('.', ':');
 
-            document.getElementById('noteModalTitle').textContent = note.title || 'Notes 📝';
+            const titleEl = document.getElementById('noteModalTitle');
+            titleEl.textContent = note.title || 'Notes 📝';
+
+            let timeEl = document.getElementById('noteModalTime');
+            if (!timeEl) {
+                timeEl = document.createElement('p');
+                timeEl.id = 'noteModalTime';
+                timeEl.className = 'text-xs text-amber-700/80 mt-2';
+                titleEl.insertAdjacentElement('afterend', timeEl);
+            }
+            timeEl.textContent = `🕒 ${tanggal} • ${jam}`;
+
             document.getElementById('noteModalContent').innerHTML = `<p>${note.text}</p>`;
             document.getElementById('noteModalAuthor').textContent = `by: ${note.author}`;
             document.getElementById('noteModal').classList.remove('hidden');
