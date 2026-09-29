@@ -219,8 +219,13 @@
             <div class="flex flex-wrap items-center justify-center gap-4 mt-6">
                 <button id="musicBtn" onclick="toggleRomanticMusic()" class="glass-card hover:bg-white/10 px-5 py-2.5 rounded-full flex items-center space-x-2 text-sm text-slate-200 transition">
                     <span id="musicIcon">🎵</span>
-                    <span id="musicText">Putar Musik Romantis</span>
+                    <span id="musicText">Putar Musik Favoritmu</span>
                 </button>
+
+                <!--GANTI SRC DIBAWAH INI DENGAN LINK MUSIK KAMU SENDIRI -->
+                <audio id="bgMusic" loop preload="auto">
+                    <source src="musik.mp3" type="audio/mpeg">
+                </audio>
 
                 <button onclick="sendMissYouPing()" class="bg-gradient-to-r from-romantic-rose to-pink-600 hover:from-pink-600 hover:to-romantic-rose text-white font-semibold px-6 py-2.5 rounded-full shadow-lg shadow-romantic-rose/30 flex items-center space-x-2 text-sm transition transform hover:scale-105 active:scale-95">
                     <span class="pulse-heart">💖</span>
@@ -738,56 +743,55 @@
         fCanvas.addEventListener('click', () => triggerBloom(true));
         setTimeout(() => resizeFlowerCanvas(), 100);
 
-        /* MUSIK SINTETIS WEB AUDIO */
+       /* AUDIO CONTEXT dipakai untuk efek chime notifikasi (JANGAN dihapus) */
         let audioCtx = null;
+
+        /* MUSIK LATAR (FILE AUDIO ASLI) */
         let isAudioPlaying = false;
-        let ambientInterval = null;
+        const bgMusic = document.getElementById('bgMusic');
+        bgMusic.volume = 0.5;
+
+        function setMusicButtonState(playing) {
+            document.getElementById('musicText').textContent = playing ? "Hentikan Musik" : "Putar Musik Romantis";
+            document.getElementById('musicIcon').textContent = playing ? "🎶" : "🎵";
+        }
 
         function toggleRomanticMusic() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-            const btnText = document.getElementById('musicText');
-            const btnIcon = document.getElementById('musicIcon');
-
             if (isAudioPlaying) {
-                clearInterval(ambientInterval);
+                bgMusic.pause();
                 isAudioPlaying = false;
-                btnText.textContent = "Putar Musik Romantis";
-                btnIcon.textContent = "🎵";
+                setMusicButtonState(false);
             } else {
-                audioCtx.resume();
-                isAudioPlaying = true;
-                btnText.textContent = "Hentikan Musik";
-                btnIcon.textContent = "🎶";
-                playRomanticChord();
-                ambientInterval = setInterval(playRomanticChord, 4000);
+                bgMusic.play().then(() => {
+                    isAudioPlaying = true;
+                    setMusicButtonState(true);
+                }).catch(() => {});
             }
         }
 
-        function playRomanticChord() {
-            if (!isAudioPlaying || !audioCtx) return;
-            const chordFreqs = [
-                [261.63, 329.63, 392.00, 523.25],
-                [220.00, 261.63, 329.63, 440.00],
-                [349.23, 440.00, 523.25, 698.46]
-            ];
-            const chosenChord = chordFreqs[Math.floor(Math.random() * chordFreqs.length)];
-
-            chosenChord.forEach((freq, index) => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-
-                gain.gain.setValueAtTime(0, audioCtx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 1 + index * 0.2);
-                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 3.8);
-
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(audioCtx.currentTime + index * 0.15);
-                osc.stop(audioCtx.currentTime + 4);
+        function tryAutoplayMusic() {
+            bgMusic.play().then(() => {
+                isAudioPlaying = true;
+                setMusicButtonState(true);
+            }).catch(() => {
+                const startOnInteraction = () => {
+                    bgMusic.play().then(() => {
+                        isAudioPlaying = true;
+                        setMusicButtonState(true);
+                    }).catch(() => {});
+                };
+                ['click', 'touchstart', 'keydown', 'scroll'].forEach(evt =>
+                    document.addEventListener(evt, startOnInteraction, { once: true })
+                );
             });
+        }
+
+        tryAutoplayMusic();
+
+        function sendMissYouPing() {
+            showNotification("Doi baru saja memencet tombol Kangen! 🥰 Seseorang sedang memikirkanmu.");
+            playChimeSound();
+            spawnHeartExplosion(window.innerWidth / 2, window.innerHeight / 2);
         }
 
         function sendMissYouPing() {
