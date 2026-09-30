@@ -55,32 +55,33 @@ function getBrowserName() {
     return "Browser";
 }
 
-// TRACKING PENGUNJUNG REALTIME & RIWAYAT (HISTORY) VIA FIREBASE
+// TRACKING PENGUNJUNG REALTIME & RECORD HISTORY VIA FIREBASE
 const sessionId = "user_" + Math.random().toString(36).substr(2, 9);
 const userPresenceRef = db.ref('presence/' + sessionId);
-const userHistoryRef = db.ref('history/' + sessionId);
+const historyRef = db.ref('history/' + sessionId);
 const connectedRef = db.ref('.info/connected');
 
-const visitorData = {
-    sessionId: sessionId,
-    device: `${getDeviceType()} (${getBrowserName()})`,
-    joinedAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    timestamp: Date.now()
-};
+const userDevice = `${getDeviceType()} (${getBrowserName()})`;
+const joinTime = new Date().toLocaleString('id-ID');
 
 connectedRef.on('value', (snap) => {
     if (snap.val() === true) {
-        // Hapus status online saat tab/browser ditutup
         userPresenceRef.onDisconnect().remove();
-
-        // Tandai status aktif
+        
+        // Simpan data pengunjung aktif
         userPresenceRef.set({
-            ...visitorData,
-            online: true
+            online: true,
+            device: userDevice,
+            joinedAt: joinTime
         });
 
-        // Simpan log permanen di node /history
-        userHistoryRef.set(visitorData);
+        // Simpan ke riwayat login permanent
+        historyRef.set({
+            sessionId: sessionId,
+            device: userDevice,
+            timestamp: joinTime,
+            status: "Selesai/Pernah Online"
+        });
     }
 });
 
@@ -108,6 +109,7 @@ function loginAdmin() {
         adminSec.scrollIntoView({ behavior: 'smooth' });
         
         listenToVisitorData();
+        listenToHistoryData();
     } else {
         errMsgs.style.display = 'block';
     }
@@ -117,48 +119,66 @@ function closeDashboardSection() {
     document.getElementById('adminDashboardSection').classList.add('hidden');
 }
 
-// PEMBACAAN DATA PENGUNJUNG (ONLINE + OFFLINE HISTORY)
 function listenToVisitorData() {
     const presenceRef = db.ref('presence');
-    const historyRef = db.ref('history');
+    presenceRef.on('value', (snapshot) => {
+        const tbody = document.getElementById('visitorTableBody');
+        tbody.innerHTML = '';
 
-    historyRef.on('value', (historySnap) => {
-        presenceRef.on('value', (presenceSnap) => {
-            const tbody = document.getElementById('visitorTableBody');
-            if (!tbody) return;
-            
-            tbody.innerHTML = '';
+        const data = snapshot.val();
+        let count = 0;
 
-            const historyData = historySnap.val() || {};
-            const presenceData = presenceSnap.val() || {};
-
-            let onlineCount = 0;
-
-            // Urutkan riwayat dari yang paling baru masuk (paling atas)
-            const allSessions = Object.values(historyData).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-            allSessions.forEach((visitor) => {
-                const isOnline = presenceData.hasOwnProperty(visitor.sessionId);
-                if (isOnline) onlineCount++;
-
+        if (data) {
+            Object.keys(data).forEach((key) => {
+                count++;
+                const visitor = data[key];
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>
-                        <span class="status-dot ${isOnline ? 'bg-emerald-500' : 'bg-gray-500'}" style="display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background-color: ${isOnline ? '#10b981' : '#6b7280'};"></span> 
-                        ${isOnline ? '<span style="color: #34d399; font-weight: 600;">Online</span>' : '<span style="color: #9ca3af;">Offline</span>'}
-                    </td>
-                    <td style="font-family: monospace;">${visitor.sessionId}</td>
+                    <td><span class="status-dot"></span> Online</td>
+                    <td style="font-family: monospace;">${key}</td>
                     <td>${visitor.device || 'Unknown'}</td>
                     <td>${visitor.joinedAt || '-'}</td>
                 `;
                 tbody.appendChild(row);
             });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400">Tidak ada pengunjung aktif.</td></tr>';
+        }
 
-            // Update statistik angka pengunjung online
-            const countEl = document.getElementById('onlineCount');
-            if (countEl) countEl.innerText = onlineCount;
-        });
+        document.getElementById('onlineCount').innerText = count;
     });
+}
+
+function listenToHistoryData() {
+    const historyRef = db.ref('history');
+    historyRef.on('value', (snapshot) => {
+        const tbody = document.getElementById('historyTableBody');
+        tbody.innerHTML = '';
+
+        const data = snapshot.val();
+
+        if (data) {
+            Object.keys(data).reverse().forEach((key) => {
+                const item = data[key];
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.timestamp || '-'}</td>
+                    <td style="font-family: monospace;">${item.sessionId || key}</td>
+                    <td>${item.device || 'Unknown'}</td>
+                    <td><span class="text-slate-400">Tercatat</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400">Belum ada riwayat kunjungan.</td></tr>';
+        }
+    });
+}
+
+function clearLoginHistory() {
+    if (confirm("Apakah kamu yakin ingin menghapus semua riwayat login?")) {
+        db.ref('history').remove();
+    }
 }
 
 // 4. DATA DEFAULT & FIREBASE REALTIME
@@ -309,7 +329,6 @@ class FloatingParticle {
             const topCurveHeight = this.size * 0.3;
             pCtx.moveTo(0, topCurveHeight);
             pCtx.bezierCurveTo(0, 0, -this.size / 2, 0, -this.size / 2, topCurveHeight);
-            pCtx.bezierCurveTo(-this.size / 2, (this.size + topCurveHeight) / 2, 0, this.size, 0, this.size);
             pCtx.bezierCurveTo(-this.size / 2, (this.size + topCurveHeight) / 2, 0, this.size, 0, this.size);
             pCtx.bezierCurveTo(0, this.size, this.size / 2, (this.size + topCurveHeight) / 2, this.size / 2, topCurveHeight);
             pCtx.bezierCurveTo(this.size / 2, 0, 0, 0, 0, topCurveHeight);
