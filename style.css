@@ -37,6 +37,7 @@ body {
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
 }
 ::-webkit-scrollbar-track {
     background: #0a0209;
@@ -175,16 +176,19 @@ body {
     opacity: 0.9;
 }
 
-/* Tabel Pengunjung Realtime */
+/* Tabel Pengunjung Realtime & History */
 .table-container {
-    max-height: 220px;
+    max-height: 250px;
     overflow-y: auto;
+    overflow-x: auto;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
+    background: rgba(0, 0, 0, 0.2);
 }
 
 table {
     width: 100%;
+    min-width: 500px;
     border-collapse: collapse;
     font-size: 13px;
     text-align: left;
@@ -193,14 +197,18 @@ table {
 th, td {
     padding: 10px 14px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    white-space: nowrap;
 }
 
 th {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.08);
     color: #f3a6b3;
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .status-dot {
