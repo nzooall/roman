@@ -19,34 +19,57 @@ document.getElementById('currentYear').textContent = new Date().getFullYear();
 // 1. PASSWORD ADMIN
 const ADMIN_PASSWORD = "admin123";
 
-// 2. TRACKING PENGUNJUNG REALTIME VIA FIREBASE PRESENCE
+// 2. DETEKSI PERANGKAT DAN BROWSER RINCI
+function getDeviceType() {
+    const ua = navigator.userAgent;
+    
+    if (/iPhone/i.test(ua)) return "iPhone";
+    if (/iPad/i.test(ua)) return "iPad";
+    if (/Android/i.test(ua)) {
+        if (/Samsung|SM-/i.test(ua)) return "Samsung";
+        if (/Xiaomi|Redmi|POCO/i.test(ua)) return "Xiaomi";
+        if (/OPPO|CPH/i.test(ua)) return "OPPO";
+        if (/vivo|V2/i.test(ua)) return "Vivo";
+        if (/Realme|RMX/i.test(ua)) return "Realme";
+        if (/Infinix/i.test(ua)) return "Infinix";
+        return "Android HP";
+    }
+    if (/Macintosh|Mac OS X/i.test(ua)) return "MacBook/Mac";
+    if (/Windows/i.test(ua)) return "Windows PC";
+    if (/Linux/i.test(ua)) return "Linux PC";
+    
+    return "Desktop/Laptop";
+}
+
+function getBrowserName() {
+    const ua = navigator.userAgent;
+
+    if (/Edg/i.test(ua)) return "Microsoft Edge";
+    if (/OPR|Opera/i.test(ua)) return "Opera";
+    if (/SamsungBrowser/i.test(ua)) return "Samsung Internet";
+    if (/UCBrowser/i.test(ua)) return "UC Browser";
+    if (/Chrome/i.test(ua) && !/Edg/i.test(ua)) return "Chrome";
+    if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) return "Safari";
+    if (/Firefox/i.test(ua)) return "Firefox";
+    
+    return "Browser";
+}
+
+// TRACKING PENGUNJUNG REALTIME VIA FIREBASE PRESENCE
 const sessionId = "user_" + Math.random().toString(36).substr(2, 9);
 const userPresenceRef = db.ref('presence/' + sessionId);
 const connectedRef = db.ref('.info/connected');
-
-const userAgent = navigator.userAgent;
-let deviceType = "Desktop";
-if (/Mobi|Android/i.test(userAgent)) deviceType = "Mobile";
-if (/Tablet|iPad/i.test(userAgent)) deviceType = "Tablet";
 
 connectedRef.on('value', (snap) => {
     if (snap.val() === true) {
         userPresenceRef.onDisconnect().remove();
         userPresenceRef.set({
             online: true,
-            device: deviceType + " (" + getBrowserName() + ")",
+            device: `${getDeviceType()} (${getBrowserName()})`,
             joinedAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
         });
     }
 });
-
-function getBrowserName() {
-    if (userAgent.includes("Chrome")) return "Chrome";
-    if (userAgent.includes("Firefox")) return "Firefox";
-    if (userAgent.includes("Safari")) return "Safari";
-    if (userAgent.includes("Edge")) return "Edge";
-    return "Browser";
-}
 
 // 3. LOGIC TOGGLE & LOGIN ADMIN
 function toggleLoginBox() {
