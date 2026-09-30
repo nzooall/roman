@@ -184,7 +184,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Surat 1 -->
                 <div onclick="openLetter(1)" class="glass-card glass-card-interactive p-6 rounded-2xl cursor-pointer text-center space-y-4 relative overflow-hidden group">
-                    <div class="w-16 h-16 mx-auto rounded-full bg-romantic-rose/20 flex items-center justify-center text-3xl text-romantic-rose group-hover:scale-110 transition duration-300">✉️️</div>
+                    <div class="w-16 h-16 mx-auto rounded-full bg-romantic-rose/20 flex items-center justify-center text-3xl text-romantic-rose group-hover:scale-110 transition duration-300">✉</div>
                     <div>
                         <span class="text-[10px] uppercase tracking-wider text-romantic-gold font-semibold">Surat #1</span>
                         <h3 class="font-serif text-xl font-semibold text-white mt-1">Open When You Miss Me</h3>
@@ -275,12 +275,13 @@
                 <i class="fa-solid fa-users text-2xl text-romantic-rose"></i>
                 <div>
                     <div class="text-xs text-slate-400">Pengunjung Aktif Saat Ini</div>
-                    <div class="text-2xl font-bold text-romantic-rose" id="onlineCount">1</div>
+                    <div class="text-2xl font-bold text-romantic-rose" id="onlineCount">0</div>
                 </div>
             </div>
 
-            <div>
-                <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">Daftar Sesi Pengunjung Terhubung:</h4>
+            <!-- TABEL 1: PENGUNJUNG ONLINE -->
+            <div class="space-y-3">
+                <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">🟢 Pengunjung Aktif Saat Ini (Online):</h4>
                 <div class="table-container">
                     <table>
                         <thead>
@@ -292,7 +293,30 @@
                             </tr>
                         </thead>
                         <tbody id="visitorTableBody">
-                            <!-- Data pengunjung realtime dimasukkan di sini oleh JS -->
+                            <tr><td colspan="4" class="text-center text-slate-400">Memuat data online...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TABEL 2: RIWAYAT / HISTORY LOGIN -->
+            <div class="space-y-3 pt-4 border-t border-white/10">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">📜 Riwayat / History Akses Pengunjung:</h4>
+                    <button onclick="clearLoginHistory()" class="text-[11px] text-red-400 hover:underline">Hapus History</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Waktu Akses</th>
+                                <th>Sesi ID</th>
+                                <th>Perangkat / Browser</th>
+                                <th>Status Akhir</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <tr><td colspan="4" class="text-center text-slate-400">Belum ada riwayat kunjungan.</td></tr>
                         </tbody>
                     </table>
                 </div>
