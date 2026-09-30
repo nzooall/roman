@@ -55,19 +55,32 @@ function getBrowserName() {
     return "Browser";
 }
 
-// TRACKING PENGUNJUNG REALTIME VIA FIREBASE PRESENCE
+// TRACKING PENGUNJUNG REALTIME & RIWAYAT (HISTORY) VIA FIREBASE
 const sessionId = "user_" + Math.random().toString(36).substr(2, 9);
 const userPresenceRef = db.ref('presence/' + sessionId);
+const userHistoryRef = db.ref('history/' + sessionId);
 const connectedRef = db.ref('.info/connected');
+
+const visitorData = {
+    sessionId: sessionId,
+    device: `${getDeviceType()} (${getBrowserName()})`,
+    joinedAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    timestamp: Date.now()
+};
 
 connectedRef.on('value', (snap) => {
     if (snap.val() === true) {
+        // Hapus status online saat tab/browser ditutup
         userPresenceRef.onDisconnect().remove();
+
+        // Tandai status aktif
         userPresenceRef.set({
-            online: true,
-            device: `${getDeviceType()} (${getBrowserName()})`,
-            joinedAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            ...visitorData,
+            online: true
         });
+
+        // Simpan log permanen di node /history
+        userHistoryRef.set(visitorData);
     }
 });
 
@@ -104,31 +117,47 @@ function closeDashboardSection() {
     document.getElementById('adminDashboardSection').classList.add('hidden');
 }
 
+// PEMBACAAN DATA PENGUNJUNG (ONLINE + OFFLINE HISTORY)
 function listenToVisitorData() {
     const presenceRef = db.ref('presence');
-    presenceRef.on('value', (snapshot) => {
-        const tbody = document.getElementById('visitorTableBody');
-        tbody.innerHTML = '';
+    const historyRef = db.ref('history');
 
-        const data = snapshot.val();
-        let count = 0;
+    historyRef.on('value', (historySnap) => {
+        presenceRef.on('value', (presenceSnap) => {
+            const tbody = document.getElementById('visitorTableBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
 
-        if (data) {
-            Object.keys(data).forEach((key) => {
-                count++;
-                const visitor = data[key];
+            const historyData = historySnap.val() || {};
+            const presenceData = presenceSnap.val() || {};
+
+            let onlineCount = 0;
+
+            // Urutkan riwayat dari yang paling baru masuk (paling atas)
+            const allSessions = Object.values(historyData).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            allSessions.forEach((visitor) => {
+                const isOnline = presenceData.hasOwnProperty(visitor.sessionId);
+                if (isOnline) onlineCount++;
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><span class="status-dot"></span> Online</td>
-                    <td style="font-family: monospace;">${key}</td>
+                    <td>
+                        <span class="status-dot ${isOnline ? 'bg-emerald-500' : 'bg-gray-500'}" style="display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background-color: ${isOnline ? '#10b981' : '#6b7280'};"></span> 
+                        ${isOnline ? '<span style="color: #34d399; font-weight: 600;">Online</span>' : '<span style="color: #9ca3af;">Offline</span>'}
+                    </td>
+                    <td style="font-family: monospace;">${visitor.sessionId}</td>
                     <td>${visitor.device || 'Unknown'}</td>
                     <td>${visitor.joinedAt || '-'}</td>
                 `;
                 tbody.appendChild(row);
             });
-        }
 
-        document.getElementById('onlineCount').innerText = count;
+            // Update statistik angka pengunjung online
+            const countEl = document.getElementById('onlineCount');
+            if (countEl) countEl.innerText = onlineCount;
+        });
     });
 }
 
@@ -280,6 +309,7 @@ class FloatingParticle {
             const topCurveHeight = this.size * 0.3;
             pCtx.moveTo(0, topCurveHeight);
             pCtx.bezierCurveTo(0, 0, -this.size / 2, 0, -this.size / 2, topCurveHeight);
+            pCtx.bezierCurveTo(-this.size / 2, (this.size + topCurveHeight) / 2, 0, this.size, 0, this.size);
             pCtx.bezierCurveTo(-this.size / 2, (this.size + topCurveHeight) / 2, 0, this.size, 0, this.size);
             pCtx.bezierCurveTo(0, this.size, this.size / 2, (this.size + topCurveHeight) / 2, this.size / 2, topCurveHeight);
             pCtx.bezierCurveTo(this.size / 2, 0, 0, 0, 0, topCurveHeight);
