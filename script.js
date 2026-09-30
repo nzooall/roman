@@ -56,47 +56,66 @@ function getBrowserName() {
     return "Browser";
 }
 
-// TRACKING PENGUNJUNG REALTIME & RECORD HISTORY SAAT KELUAR WEB
-const sessionId = "user_" + Math.random().toString(36).substr(2, 9);
+// TRACKING PENGUNJUNG REALTIME & RECORD HISTORY
+const sessionId = sessionStorage.getItem('sanctuary_session_id') || ("user_" + Math.random().toString(36).substr(2, 9));
+sessionStorage.setItem('sanctuary_session_id', sessionId);
+
 const userPresenceRef = db.ref('presence/' + sessionId);
 const historyRef = db.ref('history/' + sessionId);
 const connectedRef = db.ref('.info/connected');
 
 const userDevice = `${getDeviceType()} (${getBrowserName()})`;
 let joinTime = new Date().toLocaleString('id-ID');
-let isHistoryRecorded = false; // Flag cegah duplikasi riwayat
+let isHistoryRecorded = false;
 
-// Fungsi untuk mencatat riwayat keluar
-function saveDisconnectHistory() {
+// FUNGSI KHUSUS UNTUK MEMAKSA TULIS HISTORY SAAT SAFARI iOS DITUTUP
+function forceSaveHistory() {
     if (isHistoryRecorded) return;
     isHistoryRecorded = true;
 
-    // Simpan data ke riwayat login secara paksa
-    historyRef.set({
+    const exitTime = new Date().toLocaleTimeString('id-ID');
+    const payload = {
         sessionId: sessionId,
         device: userDevice,
-        timestamp: `${joinTime} - ${new Date().toLocaleTimeString('id-ID')}`,
+        timestamp: `${joinTime} - ${exitTime}`,
         status: "Selesai (Keluar Web)"
-    });
+    };
 
-    // Hapus dari online
-    userPresenceRef.remove();
+    // Menggunakan Fetch dengan keepalive: true agar tetap dikirim saat iOS menutup browser
+    const url = `${firebaseConfig.databaseURL}/history/${sessionId}.json`;
+    try {
+        fetch(url, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+            headers: { 'Content-Type': 'application/json' },
+            keepalive: true
+        });
+        
+        // Hapus presence
+        fetch(`${firebaseConfig.databaseURL}/presence/${sessionId}.json`, {
+            method: 'DELETE',
+            keepalive: true
+        });
+    } catch (e) {
+        historyRef.set(payload);
+        userPresenceRef.remove();
+    }
 }
 
 connectedRef.on('value', (snap) => {
     if (snap.val() === true) {
         joinTime = new Date().toLocaleString('id-ID');
 
-        // Backup bawaan Firebase jika server terputus mendadak
+        // Backup Firebase jika server terputus
         userPresenceRef.onDisconnect().remove();
         historyRef.onDisconnect().set({
             sessionId: sessionId,
             device: userDevice,
-            timestamp: joinTime,
+            timestamp: `${joinTime} - Terputus`,
             status: "Selesai (Keluar Web)"
         });
 
-        // Simpan data pengunjung aktif (Online)
+        // Simpan data online aktif
         userPresenceRef.set({
             online: true,
             device: userDevice,
@@ -106,13 +125,11 @@ connectedRef.on('value', (snap) => {
 });
 
 // MEMAKSA RECORD HISTORY KHUSUS BROWSER MOBILE / SAFARI iOS
-window.addEventListener('pagehide', function () {
-    saveDisconnectHistory();
-});
-
+window.addEventListener('pagehide', forceSaveHistory);
+window.addEventListener('beforeunload', forceSaveHistory);
 document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'hidden') {
-        saveDisconnectHistory();
+        forceSaveHistory();
     }
 });
 
