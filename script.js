@@ -63,15 +63,32 @@ const historyRef = db.ref('history/' + sessionId);
 const connectedRef = db.ref('.info/connected');
 
 const userDevice = `${getDeviceType()} (${getBrowserName()})`;
+let joinTime = new Date().toLocaleString('id-ID');
+let isHistoryRecorded = false; // Flag cegah duplikasi riwayat
+
+// Fungsi untuk mencatat riwayat keluar
+function saveDisconnectHistory() {
+    if (isHistoryRecorded) return;
+    isHistoryRecorded = true;
+
+    // Simpan data ke riwayat login secara paksa
+    historyRef.set({
+        sessionId: sessionId,
+        device: userDevice,
+        timestamp: `${joinTime} - ${new Date().toLocaleTimeString('id-ID')}`,
+        status: "Selesai (Keluar Web)"
+    });
+
+    // Hapus dari online
+    userPresenceRef.remove();
+}
 
 connectedRef.on('value', (snap) => {
     if (snap.val() === true) {
-        const joinTime = new Date().toLocaleString('id-ID');
+        joinTime = new Date().toLocaleString('id-ID');
 
-        // Hapus dari pengunjung aktif saat disconnect (keluar web)
+        // Backup bawaan Firebase jika server terputus mendadak
         userPresenceRef.onDisconnect().remove();
-        
-        // Simpan data ke riwayat login saat user disconnect (keluar web)
         historyRef.onDisconnect().set({
             sessionId: sessionId,
             device: userDevice,
@@ -85,6 +102,17 @@ connectedRef.on('value', (snap) => {
             device: userDevice,
             joinedAt: joinTime
         });
+    }
+});
+
+// MEMAKSA RECORD HISTORY KHUSUS BROWSER MOBILE / SAFARI iOS
+window.addEventListener('pagehide', function () {
+    saveDisconnectHistory();
+});
+
+document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') {
+        saveDisconnectHistory();
     }
 });
 
