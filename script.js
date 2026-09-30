@@ -14,7 +14,8 @@ if (!firebase.apps.length) {
 }
 const db = firebase.database();
 
-document.getElementById('currentYear').textContent = new Date().getFullYear();
+const currentYearEl = document.getElementById('currentYear');
+if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
 
 // 1. PASSWORD ADMIN
 const ADMIN_PASSWORD = "admin123";
@@ -55,32 +56,34 @@ function getBrowserName() {
     return "Browser";
 }
 
-// TRACKING PENGUNJUNG REALTIME & RECORD HISTORY VIA FIREBASE
+// TRACKING PENGUNJUNG REALTIME & RECORD HISTORY SAAT KELUAR WEB
 const sessionId = "user_" + Math.random().toString(36).substr(2, 9);
 const userPresenceRef = db.ref('presence/' + sessionId);
 const historyRef = db.ref('history/' + sessionId);
 const connectedRef = db.ref('.info/connected');
 
 const userDevice = `${getDeviceType()} (${getBrowserName()})`;
-const joinTime = new Date().toLocaleString('id-ID');
 
 connectedRef.on('value', (snap) => {
     if (snap.val() === true) {
+        const joinTime = new Date().toLocaleString('id-ID');
+
+        // Hapus dari pengunjung aktif saat disconnect (keluar web)
         userPresenceRef.onDisconnect().remove();
         
-        // Simpan data pengunjung aktif
+        // Simpan data ke riwayat login saat user disconnect (keluar web)
+        historyRef.onDisconnect().set({
+            sessionId: sessionId,
+            device: userDevice,
+            timestamp: joinTime,
+            status: "Selesai (Keluar Web)"
+        });
+
+        // Simpan data pengunjung aktif (Online)
         userPresenceRef.set({
             online: true,
             device: userDevice,
             joinedAt: joinTime
-        });
-
-        // Simpan ke riwayat login permanent
-        historyRef.set({
-            sessionId: sessionId,
-            device: userDevice,
-            timestamp: joinTime,
-            status: "Selesai/Pernah Online"
         });
     }
 });
@@ -145,7 +148,8 @@ function listenToVisitorData() {
             tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400">Tidak ada pengunjung aktif.</td></tr>';
         }
 
-        document.getElementById('onlineCount').innerText = count;
+        const onlineCountEl = document.getElementById('onlineCount');
+        if (onlineCountEl) onlineCountEl.innerText = count;
     });
 }
 
@@ -156,22 +160,29 @@ function listenToHistoryData() {
         tbody.innerHTML = '';
 
         const data = snapshot.val();
+        let totalHistory = 0;
 
         if (data) {
-            Object.keys(data).reverse().forEach((key) => {
+            const keys = Object.keys(data).reverse();
+            totalHistory = keys.length;
+
+            keys.forEach((key) => {
                 const item = data[key];
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${item.timestamp || '-'}</td>
                     <td style="font-family: monospace;">${item.sessionId || key}</td>
                     <td>${item.device || 'Unknown'}</td>
-                    <td><span class="text-slate-400">Tercatat</span></td>
+                    <td><span class="px-2 py-0.5 text-[10px] rounded bg-pink-500/20 text-pink-300 border border-pink-500/30">Selesai</span></td>
                 `;
                 tbody.appendChild(row);
             });
         } else {
             tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400">Belum ada riwayat kunjungan.</td></tr>';
         }
+
+        const historyCountEl = document.getElementById('historyCount');
+        if (historyCountEl) historyCountEl.innerText = totalHistory;
     });
 }
 
@@ -229,20 +240,28 @@ notesRef.on('value', snapshot => {
     renderNotes();
 });
 
-document.getElementById('coupleNames').textContent = coupleNames;
+const coupleNamesEl = document.getElementById('coupleNames');
+if (coupleNamesEl) coupleNamesEl.textContent = coupleNames;
+
 const options = { year: 'numeric', month: 'long', day: 'numeric' };
-document.getElementById('startDateDisplay').textContent = startDate.toLocaleDateString('id-ID', options);
+const startDateDisplayEl = document.getElementById('startDateDisplay');
+if (startDateDisplayEl) startDateDisplayEl.textContent = startDate.toLocaleDateString('id-ID', options);
 
 /* TIMING & COUNTER LOGIC */
 function updateCounter() {
     const now = new Date();
     const diff = now - startDate;
 
+    const daysEl = document.getElementById('daysCount');
+    const hoursEl = document.getElementById('hoursCount');
+    const minutesEl = document.getElementById('minutesCount');
+    const secondsEl = document.getElementById('secondsCount');
+
     if (diff < 0) {
-        document.getElementById('daysCount').textContent = "00";
-        document.getElementById('hoursCount').textContent = "00";
-        document.getElementById('minutesCount').textContent = "00";
-        document.getElementById('secondsCount').textContent = "00";
+        if (daysEl) daysEl.textContent = "00";
+        if (hoursEl) hoursEl.textContent = "00";
+        if (minutesEl) minutesEl.textContent = "00";
+        if (secondsEl) secondsEl.textContent = "00";
         return;
     }
 
@@ -251,10 +270,10 @@ function updateCounter() {
     const minutes = Math.floor((diff / (1000 * 60)) % 60);
     const seconds = Math.floor((diff / 1000) % 60);
 
-    document.getElementById('daysCount').textContent = String(days).padStart(2, '0');
-    document.getElementById('hoursCount').textContent = String(hours).padStart(2, '0');
-    document.getElementById('minutesCount').textContent = String(minutes).padStart(2, '0');
-    document.getElementById('secondsCount').textContent = String(seconds).padStart(2, '0');
+    if (daysEl) daysEl.textContent = String(days).padStart(2, '0');
+    if (hoursEl) hoursEl.textContent = String(hours).padStart(2, '0');
+    if (minutesEl) minutesEl.textContent = String(minutes).padStart(2, '0');
+    if (secondsEl) secondsEl.textContent = String(seconds).padStart(2, '0');
 }
 
 setInterval(updateCounter, 1000);
@@ -288,10 +307,11 @@ function editStartDate() {
 
 /* PARTIKEL MELAYANG BACKGROUND */
 const pCanvas = document.getElementById('particleCanvas');
-const pCtx = pCanvas.getContext('2d');
+const pCtx = pCanvas ? pCanvas.getContext('2d') : null;
 let particles = [];
 
 function resizeParticleCanvas() {
+    if (!pCanvas) return;
     pCanvas.width = window.innerWidth;
     pCanvas.height = window.innerHeight;
 }
@@ -301,6 +321,7 @@ resizeParticleCanvas();
 class FloatingParticle {
     constructor() { this.reset(); }
     reset() {
+        if (!pCanvas) return;
         this.x = Math.random() * pCanvas.width;
         this.y = pCanvas.height + Math.random() * 100;
         this.size = Math.random() * 4 + 2;
@@ -318,6 +339,7 @@ class FloatingParticle {
         if (this.y < -20) this.reset();
     }
     draw() {
+        if (!pCtx) return;
         pCtx.save();
         pCtx.translate(this.x, this.y);
         pCtx.rotate((this.rotation * Math.PI) / 180);
@@ -344,22 +366,26 @@ class FloatingParticle {
     }
 }
 
-for (let i = 0; i < 40; i++) particles.push(new FloatingParticle());
+if (pCanvas) {
+    for (let i = 0; i < 40; i++) particles.push(new FloatingParticle());
+}
 
 function animateParticles() {
+    if (!pCanvas || !pCtx) return;
     pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
     particles.forEach(p => { p.update(); p.draw(); });
     requestAnimationFrame(animateParticles);
 }
-animateParticles();
+if (pCanvas) animateParticles();
 
 /* ANIMASI BUNGA MEKAR (CANVAS) */
 const fCanvas = document.getElementById('flowerCanvas');
-const fCtx = fCanvas.getContext('2d');
+const fCtx = fCanvas ? fCanvas.getContext('2d') : null;
 let bloomProgress = 0;
 let isBlooming = false;
 
 function resizeFlowerCanvas() {
+    if (!fCanvas) return;
     const rect = fCanvas.parentElement.getBoundingClientRect();
     fCanvas.width = rect.width;
     fCanvas.height = rect.height;
@@ -368,6 +394,7 @@ function resizeFlowerCanvas() {
 window.addEventListener('resize', resizeFlowerCanvas);
 
 function drawFlower(progress) {
+    if (!fCanvas || !fCtx) return;
     const w = fCanvas.width;
     const h = fCanvas.height;
     const cx = w / 2;
@@ -454,7 +481,7 @@ function triggerBloom(reset = false) {
     isBlooming = true;
 
     const quote = document.getElementById('flowerQuote');
-    quote.classList.add('opacity-0');
+    if (quote) quote.classList.add('opacity-0');
 
     let anim = setInterval(() => {
         bloomProgress += 0.02;
@@ -464,27 +491,32 @@ function triggerBloom(reset = false) {
             bloomProgress = 1;
             clearInterval(anim);
             isBlooming = false;
-            quote.classList.remove('opacity-0');
+            if (quote) quote.classList.remove('opacity-0');
             spawnHeartExplosion(window.innerWidth / 2, window.innerHeight / 2);
         }
     }, 30);
 }
 
-fCanvas.addEventListener('click', () => triggerBloom(true));
-setTimeout(() => resizeFlowerCanvas(), 100);
+if (fCanvas) {
+    fCanvas.addEventListener('click', () => triggerBloom(true));
+    setTimeout(() => resizeFlowerCanvas(), 100);
+}
 
 /* AUDIO CONTEXT & MUSIK LATAR */
 let audioCtx = null;
 let isAudioPlaying = false;
 const bgMusic = document.getElementById('bgMusic');
-bgMusic.volume = 0.5;
+if (bgMusic) bgMusic.volume = 0.5;
 
 function setMusicButtonState(playing) {
-    document.getElementById('musicText').textContent = playing ? "Hentikan Musik" : "Putar Musik Favoritmu";
-    document.getElementById('musicIcon').textContent = playing ? "🎶" : "🎵";
+    const musicText = document.getElementById('musicText');
+    const musicIcon = document.getElementById('musicIcon');
+    if (musicText) musicText.textContent = playing ? "Hentikan Musik" : "Putar Musik Favoritmu";
+    if (musicIcon) musicIcon.textContent = playing ? "🎶" : "🎵";
 }
 
 function toggleRomanticMusic() {
+    if (!bgMusic) return;
     if (isAudioPlaying) {
         bgMusic.pause();
         isAudioPlaying = false;
@@ -498,6 +530,7 @@ function toggleRomanticMusic() {
 }
 
 function tryAutoplayMusic() {
+    if (!bgMusic) return;
     bgMusic.play().then(() => {
         isAudioPlaying = true;
         setMusicButtonState(true);
@@ -525,13 +558,14 @@ function sendMissYouPing() {
 function showNotification(msg) {
     const container = document.getElementById('notificationContainer');
     const text = document.getElementById('notifText');
-    text.textContent = msg;
-    container.classList.remove('hidden');
+    if (text) text.textContent = msg;
+    if (container) container.classList.remove('hidden');
     setTimeout(() => hideNotification(), 5000);
 }
 
 function hideNotification() {
-    document.getElementById('notificationContainer').classList.add('hidden');
+    const container = document.getElementById('notificationContainer');
+    if (container) container.classList.add('hidden');
 }
 
 function playChimeSound() {
@@ -579,6 +613,7 @@ function spawnHeartExplosion(x, y) {
 /* MANAJEMEN FOTO KENANGAN */
 function renderPhotoGallery() {
     const grid = document.getElementById('photoGrid');
+    if (!grid) return;
     grid.innerHTML = '';
 
     photoMemories.forEach(mem => {
@@ -730,6 +765,7 @@ function closeLetterModal() { document.getElementById('letterModal').classList.a
 /* MANAJEMEN BUCKET LIST */
 function renderBucketList() {
     const container = document.getElementById('bucketListContainer');
+    if (!container) return;
     container.innerHTML = '';
 
     bucketList.forEach(item => {
@@ -783,6 +819,7 @@ function deleteBucket(id) {
 /* MANAJEMEN NOTES */
 function renderNotes() {
     const container = document.getElementById('notesContainer');
+    if (!container) return;
     container.innerHTML = '';
 
     notes.forEach(note => {

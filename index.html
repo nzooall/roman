@@ -271,11 +271,22 @@
                 </button>
             </div>
 
-            <div class="inline-flex items-center space-x-4 bg-romantic-rose/10 border border-romantic-rose/30 px-5 py-3 rounded-xl">
-                <i class="fa-solid fa-users text-2xl text-romantic-rose"></i>
-                <div>
-                    <div class="text-xs text-slate-400">Pengunjung Aktif Saat Ini</div>
-                    <div class="text-2xl font-bold text-romantic-rose" id="onlineCount">0</div>
+            <!-- DUA KOTAK STATISTIK BERDAMPINGAN -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="flex items-center space-x-4 bg-romantic-rose/10 border border-romantic-rose/30 px-5 py-3 rounded-xl">
+                    <i class="fa-solid fa-users text-2xl text-romantic-rose"></i>
+                    <div>
+                        <div class="text-xs text-slate-400">Pengunjung Aktif Saat Ini</div>
+                        <div class="text-2xl font-bold text-romantic-rose" id="onlineCount">0</div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4 bg-amber-500/10 border border-amber-500/30 px-5 py-3 rounded-xl">
+                    <i class="fa-solid fa-clock-rotate-left text-2xl text-amber-400"></i>
+                    <div>
+                        <div class="text-xs text-slate-400">Total Riwayat Selesai/Keluar</div>
+                        <div class="text-2xl font-bold text-amber-400" id="historyCount">0</div>
+                    </div>
                 </div>
             </div>
 
