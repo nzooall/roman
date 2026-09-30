@@ -5,256 +5,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Our Digital Sanctuary</title>
     
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Tailwind Configuration -->
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        romantic: {
-                            bg1: '#0a0209',
-                            bg2: '#1d0720',
-                            bg3: '#2b0c2a',
-                            rose: '#ff4d6d',
-                            roseLight: '#ff758f',
-                            gold: '#ffd700',
-                            goldLight: '#fff099',
-                            softPink: '#f3a6b3',
-                            glassBorder: 'rgba(255, 182, 193, 0.2)'
-                        }
-                    },
-                    fontFamily: {
-                        serif: ['"Cormorant Garamond"', 'serif'],
-                        cursive: ['"Alex Brush"', 'cursive'],
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif']
+                        'romantic-rose': '#f43f5e',
+                        'romantic-gold': '#fbbf24',
                     }
                 }
             }
         }
     </script>
-
-    <!-- Firebase (v9 Compatibility Mode) -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     
-    <!-- Custom CSS -->
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Style kustom -->
     <link rel="stylesheet" href="style.css">
+
+    <!-- Firebase App & Database (Compat SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 </head>
-<body class="relative">
+<body class="bg-slate-950 text-slate-100 min-h-screen relative overflow-x-hidden">
 
-    <!-- Latar Belakang Partikel Melayang -->
-    <div class="fixed inset-0 pointer-events-none z-0">
-        <canvas id="particleCanvas"></canvas>
-    </div>
+    <!-- EFEK LATAR BELAKANG / Bunga/Kelopak -->
+    <div id="petalContainer" class="fixed inset-0 pointer-events-none z-0"></div>
 
-    <!-- Container Notifikasi Pop-up -->
-    <div id="notificationContainer" class="fixed top-4 inset-x-4 z-50 max-w-md mx-auto hidden">
-        <div class="toast-notification bg-slate-900/95 border border-romantic-rose/60 p-3 md:p-4 rounded-2xl shadow-2xl backdrop-blur-xl flex items-center space-x-3 md:space-x-4">
-            <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-tr from-romantic-rose to-romantic-gold flex items-center justify-center text-xl md:text-2x1 shrink-0 animate-bounce">
-                💖
-            </div>
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between mb-0.5">
-                    <h4 class="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-romantic-gold">Sinyal Masuk!</h4>
-                    <span class="text-[9px] md:text-[10px] text-slate-400 shrink-0 ml-2">Baru Saja</span>
+    <!-- MAIN CONTAINER -->
+    <div class="relative z-10 max-w-4xl mx-auto px-4 py-8 space-y-10">
+
+        <!-- HEADER / PENGHITUNG WAKTU -->
+        <header class="text-center space-y-4">
+            <h1 class="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-400 to-amber-300">
+                Our Digital Sanctuary
+            </h1>
+            <p class="text-slate-400 text-sm md:text-base">Setiap detik yang berlalu adalah kenangan indah bersama.</p>
+            
+            <!-- Timer -->
+            <div id="timer" class="flex justify-center items-center gap-3 md:gap-6 pt-4 text-center">
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-3 min-w-[70px]">
+                    <span id="days" class="block text-2xl md:text-4xl font-bold text-pink-400">0</span>
+                    <span class="text-[10px] md:text-xs text-slate-400 uppercase">Hari</span>
                 </div>
-                <p id="notifText" class="text-xs md:text-sm font-medium text-slate-100 leading-snug break-words">ada yang kangen yaa..</p>
-            </div>
-            <button onclick="hideNotification()" class="text-slate-400 hover:text-white p-1 text-base leading-none shrink-0">
-                ✕
-            </button>
-        </div>
-    </div>
-
-    <div class="relative z-10 max-w-6xl mx-auto px-4 py-8 space-y-12">
-
-        <!-- HEADER & COUNTER BERSAMA -->
-        <header class="glass-card rounded-3xl p-6 md:p-10 text-center relative overflow-hidden">
-            <div class="absolute -top-24 -left-24 w-48 h-48 bg-romantic-rose/20 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-romantic-gold/20 rounded-full blur-3xl pointer-events-none"></div>
-
-            <div class="mb-6">
-                <span class="text-xs md:text-sm uppercase tracking-[0.3em] text-romantic-softPink font-semibold">Our Digital Sanctuary</span>
-                <div class="flex items-center justify-center space-x-3 mt-2">
-                    <h1 id="coupleNames" class="font-cursive text-4xl md:text-6xl text-romantic-goldLight glow-text-gold cursor-pointer">my roman website</h1>
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-3 min-w-[70px]">
+                    <span id="hours" class="block text-2xl md:text-4xl font-bold text-rose-400">0</span>
+                    <span class="text-[10px] md:text-xs text-slate-400 uppercase">Jam</span>
                 </div>
-                <p class="font-serif italic text-slate-300 text-lg md:text-xl mt-2">"Setiap detik bersamamu adalah takdir terindah."</p>
-            </div>
-
-            <!-- Timer Menghitung Waktu Hubungan -->
-            <div class="bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-4 md:p-6 max-w-2xl mx-auto my-6">
-                <p class="text-xs uppercase tracking-widest text-romantic-softPink mb-3">Kita Telah Bersama Selama</p>
-                <div class="grid grid-cols-4 gap-2 md:gap-4 text-center">
-                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
-                        <span id="daysCount" class="block font-bold text-2xl md:text-4xl text-romantic-rose glow-text-rose">00</span>
-                        <span class="text-[10px] md:text-xs text-slate-400 uppercase">Hari</span>
-                    </div>
-                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
-                        <span id="hoursCount" class="block font-bold text-2xl md:text-4xl text-romantic-gold glow-text-gold">00</span>
-                        <span class="text-[10px] md:text-xs text-slate-400 uppercase">Jam</span>
-                    </div>
-                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
-                        <span id="minutesCount" class="block font-bold text-2xl md:text-4xl text-white">00</span>
-                        <span class="text-[10px] md:text-xs text-slate-400 uppercase">Menit</span>
-                    </div>
-                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
-                        <span id="secondsCount" class="block font-bold text-2xl md:text-4xl text-romantic-softPink">00</span>
-                        <span class="text-[10px] md:text-xs text-slate-400 uppercase">Detik</span>
-                    </div>
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-3 min-w-[70px]">
+                    <span id="minutes" class="block text-2xl md:text-4xl font-bold text-amber-400">0</span>
+                    <span class="text-[10px] md:text-xs text-slate-400 uppercase">Menit</span>
                 </div>
-                <div class="mt-4 flex items-center justify-center space-x-2 text-xs text-slate-400">
-                    <span>Terhitung sejak:</span>
-                    <button onclick="editStartDate()" class="text-romantic-gold hover:underline font-medium" id="startDateDisplay">14 Februari 2023</button>
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-3 min-w-[70px]">
+                    <span id="seconds" class="block text-2xl md:text-4xl font-bold text-amber-300">0</span>
+                    <span class="text-[10px] md:text-xs text-slate-400 uppercase">Detik</span>
                 </div>
-            </div>
-
-            <!-- Tombol Musik Sintetis & Ping Kangen -->
-            <div class="flex flex-wrap items-center justify-center gap-4 mt-6">
-                <button id="musicBtn" onclick="toggleRomanticMusic()" class="glass-card hover:bg-white/10 px-5 py-2.5 rounded-full flex items-center space-x-2 text-sm text-slate-200 transition">
-                    <span id="musicIcon">🎵</span>
-                    <span id="musicText">Putar Musik Favoritmu</span>
-                </button>
-
-                <audio id="bgMusic" loop preload="auto">
-                    <source src="musik.mp3" type="audio/mpeg">
-                </audio>
-
-                <button onclick="sendMissYouPing()" class="bg-gradient-to-r from-romantic-rose to-pink-600 hover:from-pink-600 hover:to-romantic-rose text-white font-semibold px-6 py-2.5 rounded-full shadow-lg shadow-romantic-rose/30 flex items-center space-x-2 text-sm transition transform hover:scale-105 active:scale-95">
-                    <span class="pulse-heart">💖</span>
-                    <span>Kirim Sinyal Kangen!</span>
-                </button>
             </div>
         </header>
 
-        <!-- SEKSI BUNGA MEKAR INTERAKTIF (CANVAS) -->
-        <section class="glass-card rounded-3xl p-6 md:p-10 relative overflow-hidden text-center">
-            <div class="max-w-xl mx-auto space-y-2 mb-4">
-                <span class="text-xs uppercase tracking-widest text-romantic-gold font-semibold">Spesial Untukmu</span>
-                <h2 class="font-serif text-3xl md:text-4xl font-semibold text-white">Bunga Cinta Abadi</h2>
-                <p class="text-sm text-slate-300">Sentuh atau klik pada kuncup bunga di bawah ini untuk melihatnya bermekaran mekar indah!</p>
-            </div>
-
-            <div class="relative w-full max-w-md h-80 md:h-96 mx-auto rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden">
-                <canvas id="flowerCanvas"></canvas>
-                <div id="flowerQuote" class="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-md p-3 rounded-xl border border-romantic-rose/30 text-xs text-romantic-softPink opacity-0 transition-opacity duration-1000">
-                    "Seperti bunga ini, cintaku padamu mekar sempurna setiap hari."
-                </div>
-            </div>
-            
-            <button onclick="triggerBloom(true)" class="mt-4 text-xs text-romantic-softPink/80 hover:text-romantic-softPink underline">
-                🌸 Mekarkan Ulang Bunga
-            </button>
-        </section>
-
-        <!-- GALERI FOTO KENANGAN -->
-        <section class="space-y-6">
-            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                    <span class="text-xs uppercase tracking-widest text-romantic-rose font-semibold">Galeri Kenangan</span>
-                    <h2 class="font-serif text-3xl md:text-4xl font-semibold text-white">Lini Masa Foto Kita</h2>
-                    <p class="text-sm text-slate-300">Setiap momen manis yang tersimpan abadi.</p>
-                </div>
-                <button onclick="openAddPhotoModal()" class="glass-card hover:bg-romantic-rose/20 text-romantic-roseLight border-romantic-rose/30 px-4 py-2 rounded-xl text-sm font-medium flex items-center space-x-2 self-start md:self-auto transition">
-                    <span>➕ Tambah Kenangan Baru</span>
-                </button>
-            </div>
-
-            <div id="photoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-        </section>
-
-        <!-- SURAT "OPEN WHEN..." -->
-        <section class="space-y-6">
-            <div class="text-center max-w-xl mx-auto space-y-2">
-                <span class="text-xs uppercase tracking-widest text-romantic-gold font-semibold">Pesan Rahasia</span>
-                <h2 class="font-serif text-3xl md:text-4xl font-semibold text-white">Surat "Open When..."</h2>
-                <p class="text-sm text-slate-300">Buka surat ini hanya pada momen tertentu atau masukkan kata kunci khusus.</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Surat 1 -->
-                <div onclick="openLetter(1)" class="glass-card glass-card-interactive p-6 rounded-2xl cursor-pointer text-center space-y-4 relative overflow-hidden group">
-                    <div class="w-16 h-16 mx-auto rounded-full bg-romantic-rose/20 flex items-center justify-center text-3xl text-romantic-rose group-hover:scale-110 transition duration-300">✉</div>
-                    <div>
-                        <span class="text-[10px] uppercase tracking-wider text-romantic-gold font-semibold">Surat #1</span>
-                        <h3 class="font-serif text-xl font-semibold text-white mt-1">Open When You Miss Me</h3>
-                        <p class="text-xs text-slate-400 mt-2">Buka saat kamu lagi kangen-kangennya sama aku...</p>
-                    </div>
-                    <span class="inline-block text-xs text-romantic-softPink font-medium underline pt-2">Klik Untuk Membaca →</span>
-                </div>
-
-                <!-- Surat 2 (Terkunci) -->
-                <div onclick="openLetter(2)" class="glass-card glass-card-interactive p-6 rounded-2xl cursor-pointer text-center space-y-4 relative overflow-hidden group">
-                    <div class="w-16 h-16 mx-auto rounded-full bg-romantic-gold/20 flex items-center justify-center text-3xl text-romantic-gold group-hover:scale-110 transition duration-300">🔒</div>
-                    <div>
-                        <span class="text-[10px] uppercase tracking-wider text-romantic-gold font-semibold">Surat #2 (Terkunci)</span>
-                        <h3 class="font-serif text-xl font-semibold text-white mt-1">Open When You Feel Sad</h3>
-                        <p class="text-xs text-slate-400 mt-2">Membutuhkan kata sandi dengan tanggal lahir kamu...</p>
-                    </div>
-                    <span class="inline-block text-xs text-romantic-gold font-medium underline pt-2">Buka Dengan Sandi →</span>
-                </div>
-
-                <!-- Surat 3 -->
-                <div onclick="openLetter(3)" class="glass-card glass-card-interactive p-6 rounded-2xl cursor-pointer text-center space-y-4 relative overflow-hidden group">
-                    <div class="w-16 h-16 mx-auto rounded-full bg-purple-500/20 flex items-center justify-center text-3xl text-purple-300 group-hover:scale-110 transition duration-300">💌</div>
-                    <div>
-                        <span class="text-[10px] uppercase tracking-wider text-romantic-gold font-semibold">Surat #3</span>
-                        <h3 class="font-serif text-xl font-semibold text-white mt-1">Our Future Promises</h3>
-                        <p class="text-xs text-slate-400 mt-2">Janji-janji kecil yang akan selalu aku jaga untukmu...</p>
-                    </div>
-                    <span class="inline-block text-xs text-romantic-softPink font-medium underline pt-2">Klik Untuk Membaca →</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- COUPLE BUCKET LIST -->
-        <section class="glass-card rounded-3xl p-6 md:p-10 space-y-6">
-            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                    <span class="text-xs uppercase tracking-widest text-romantic-gold font-semibold">Target Masa Depan</span>
-                    <h2 class="font-serif text-3xl md:text-4xl font-semibold text-white">Couple Bucket List 🎯</h2>
-                    <p class="text-sm text-slate-300">Daftar impian dan kencan seru yang ingin kita lakukan bersama.</p>
-                </div>
-                <div class="flex space-x-2">
-                    <input id="newBucketInput" type="text" placeholder="Tambah impian baru..." class="bg-black/40 border border-white/10 text-white placeholder-slate-500 text-sm px-4 py-2 rounded-xl focus:outline-none focus:border-romantic-rose">
-                    <button onclick="addBucketItem()" class="bg-romantic-rose hover:bg-pink-600 text-white font-medium px-4 py-2 rounded-xl text-sm transition">Tambah</button>
-                </div>
-            </div>
-
-            <div id="bucketListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-        </section>
-
-        <!-- NOTES -->
-        <section class="glass-card rounded-3xl p-6 md:p-10 space-y-6">
-            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                    <span class="text-xs uppercase tracking-widest text-romantic-gold font-semibold">Coretan Hati</span>
-                    <h2 class="font-serif text-3xl md:text-4xl font-semibold text-white">Notes 📝</h2>
-                    <p class="text-sm text-slate-300">Tulis pesan apapun, kapan aja kamu mau.</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-[1fr,auto] gap-3">
-                <input id="newNoteTitle" type="text" placeholder="Judul notes (opsional)..." class="bg-black/40 border border-white/10 text-white placeholder-slate-500 text-sm px-4 py-3 rounded-xl focus:outline-none focus:border-romantic-rose">
-                <input id="newNoteAuthor" type="text" placeholder="By: nama kamu" class="bg-black/40 border border-white/10 text-white placeholder-slate-500 text-sm px-4 py-3 rounded-xl focus:outline-none focus:border-romantic-rose md:w-52">
-            </div>
-            <textarea id="newNoteText" placeholder="Tulis pesan di sini..." rows="2" class="w-full bg-black/40 border border-white/10 text-white placeholder-slate-500 text-sm px-4 py-3 rounded-xl focus:outline-none focus:border-romantic-rose resize-y"></textarea>
-            <button onclick="addNote()" class="bg-romantic-rose hover:bg-pink-600 text-white font-medium px-5 py-2.5 rounded-xl text-sm transition">Kirim Notes</button>
-
-            <div id="notesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-        </section>
-
-        <!-- DASHBOARD TABEL ADMIN DI BAWAH -->
+        <!-- DASHBOARD TABEL ADMIN -->
         <section id="adminDashboardSection" class="glass-card rounded-3xl p-6 md:p-8 space-y-6 hidden">
             <div class="flex items-center justify-between border-b border-white/10 pb-4">
                 <div class="flex items-center space-x-3">
@@ -271,25 +83,36 @@
                 </button>
             </div>
 
-            <div class="inline-flex items-center space-x-4 bg-romantic-rose/10 border border-romantic-rose/30 px-5 py-3 rounded-xl">
-                <i class="fa-solid fa-users text-2xl text-romantic-rose"></i>
-                <div>
-                    <div class="text-xs text-slate-400">Pengunjung Aktif Saat Ini</div>
-                    <div class="text-2xl font-bold text-romantic-rose" id="onlineCount">0</div>
+            <!-- DUA KOTAK STATISTIK BERDAMPINGAN -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="flex items-center space-x-4 bg-romantic-rose/10 border border-romantic-rose/30 px-5 py-3 rounded-xl">
+                    <i class="fa-solid fa-users text-2xl text-romantic-rose"></i>
+                    <div>
+                        <div class="text-xs text-slate-400">Pengunjung Aktif Saat Ini</div>
+                        <div class="text-2xl font-bold text-romantic-rose" id="onlineCount">0</div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4 bg-romantic-gold/10 border border-romantic-gold/30 px-5 py-3 rounded-xl">
+                    <i class="fa-solid fa-clock-rotate-left text-2xl text-romantic-gold"></i>
+                    <div>
+                        <div class="text-xs text-slate-400">Total Riwayat Selesai/Keluar</div>
+                        <div class="text-2xl font-bold text-romantic-gold" id="historyCount">0</div>
+                    </div>
                 </div>
             </div>
 
             <!-- TABEL 1: PENGUNJUNG ONLINE -->
             <div class="space-y-3">
-                <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">🟢 Pengunjung Aktif Saat Ini (Online):</h4>
+                <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">🟢 PENGUNJUNG AKTIF SAAT INI (ONLINE):</h4>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>Status</th>
-                                <th>Sesi ID</th>
-                                <th>Perangkat / Browser</th>
-                                <th>Waktu Masuk</th>
+                                <th>STATUS</th>
+                                <th>SESI ID</th>
+                                <th>PERANGKAT / BROWSER</th>
+                                <th>WAKTU MASUK</th>
                             </tr>
                         </thead>
                         <tbody id="visitorTableBody">
@@ -299,20 +122,20 @@
                 </div>
             </div>
 
-            <!-- TABEL 2: RIWAYAT / HISTORY LOGIN -->
+            <!-- TABEL 2: RIWAYAT / HISTORY LOGIN (USER KELUAR) -->
             <div class="space-y-3 pt-4 border-t border-white/10">
                 <div class="flex items-center justify-between">
-                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">📜 Riwayat / History Akses Pengunjung:</h4>
+                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">📜 RIWAYAT / HISTORY AKSES PENGUNJUNG:</h4>
                     <button onclick="clearLoginHistory()" class="text-[11px] text-red-400 hover:underline">Hapus History</button>
                 </div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>Waktu Akses</th>
-                                <th>Sesi ID</th>
-                                <th>Perangkat / Browser</th>
-                                <th>Status Akhir</th>
+                                <th>WAKTU MASUK</th>
+                                <th>SESI ID</th>
+                                <th>PERANGKAT / BROWSER</th>
+                                <th>STATUS AKHIR</th>
                             </tr>
                         </thead>
                         <tbody id="historyTableBody">
@@ -323,113 +146,30 @@
             </div>
         </section>
 
-        <!-- FOOTER -->
-        <footer class="text-center text-xs text-slate-500 py-6">
-            Created with zozoo • <span id="currentYear"></span>
-        </footer>
-    </div>
-
-    <!-- MODAL POPUP FOTO DETAIL -->
-    <div id="photoModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="glass-card max-w-2xl w-full rounded-3xl overflow-hidden p-6 relative space-y-4">
-            <button onclick="closePhotoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">✕</button>
-            <button onclick="openEditPhotoModal()" class="absolute top-4 right-14 text-xs text-slate-300 hover:text-romantic-gold bg-black/40 px-3 py-1.5 rounded-lg border border-white/10 flex items-center space-x-1">
-                <span>✏️</span><span>Edit</span>
+        <!-- FOOTER & BOTON ADMIN LOGIN MODAL TRIGGER -->
+        <footer class="text-center text-xs text-slate-500 pt-8 border-t border-white/5 relative">
+            <p>Created with ❤️️ • 2026</p>
+            <button onclick="openAdminModal()" class="absolute bottom-0 left-0 text-[10px] text-slate-700 hover:text-slate-400 transition">
+                <i class="fa-solid fa-lock opacity-30"></i> Admin
             </button>
-            <div class="h-72 md:h-96 rounded-2xl overflow-hidden bg-black/50">
-                <img id="modalImg" src="" alt="Memory" class="w-full h-full object-cover">
-            </div>
-            <div>
-                <div class="flex items-center justify-between text-xs text-romantic-gold font-semibold">
-                    <span id="modalDate">14 Feb 2024</span>
-                    <span id="modalLoc">📍 Bali, Indonesia</span>
-                </div>
-                <h3 id="modalTitle" class="font-serif text-2xl font-bold text-white mt-1">Judul Momen</h3>
-                <p id="modalDesc" class="text-sm text-slate-300 mt-2">Deskripsi cerita manis...</p>
+        </footer>
+
+    </div>
+
+    <!-- MODAL INPUT PIN ADMIN -->
+    <div id="adminModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="glass-card p-6 rounded-2xl max-w-xs w-full space-y-4 border border-white/10">
+            <h3 class="text-lg font-semibold text-white text-center">Akses Dashboard Admin</h3>
+            <p class="text-xs text-slate-400 text-center">Masukkan PIN rahasia untuk membuka panel pemantau.</p>
+            <input type="password" id="adminPinInput" placeholder="Masukkan PIN" class="w-full px-4 py-2 bg-slate-900/80 border border-white/10 rounded-xl text-white text-center tracking-widest focus:outline-none focus:border-rose-500">
+            <div class="flex space-x-2">
+                <button onclick="closeAdminModal()" class="w-1/2 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs transition">Batal</button>
+                <button onclick="verifyAdminPin()" class="w-1/2 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold transition">Masuk</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL POPUP TAMBAH FOTO BARU -->
-    <div id="addPhotoModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="glass-card max-w-md w-full rounded-3xl p-6 relative space-y-4">
-            <button onclick="closeAddPhotoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
-            <h3 id="photoModalFormTitle" class="font-serif text-2xl font-bold text-white">Tambah Kenangan Baru 📸</h3>
-            <div class="space-y-3 text-xs">
-                <div>
-                    <label class="block text-slate-300 mb-1">Judul Momen</label>
-                    <input id="inputPhotoTitle" type="text" placeholder="Kencan Pertama" class="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:border-romantic-rose outline-none">
-                </div>
-                <div>
-                    <label class="block text-slate-300 mb-1">URL Foto (Link Gambar)</label>
-                    <input id="inputPhotoUrl" type="text" placeholder="https://images.unsplash.com/..." class="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:border-romantic-rose outline-none">
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-slate-300 mb-1">Tanggal</label>
-                        <input id="inputPhotoDate" type="text" placeholder="14 Feb 2024" class="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:border-romantic-rose outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-slate-300 mb-1">Lokasi</label>
-                        <input id="inputPhotoLoc" type="text" placeholder="Bandung" class="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:border-romantic-rose outline-none">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-slate-300 mb-1">Pesan / Cerita Singkat</label>
-                    <textarea id="inputPhotoDesc" rows="3" placeholder="Ceritakan momen manis ini..." class="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:border-romantic-rose outline-none"></textarea>
-                </div>
-                <button id="savePhotoBtn" onclick="savePhotoMemory()" class="w-full bg-gradient-to-r from-romantic-rose to-pink-600 hover:from-pink-600 hover:to-romantic-rose text-white font-semibold py-3 rounded-xl transition">
-                    Simpan Kenangan
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL POPUP SURAT RAHASIA -->
-    <div id="letterModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-[#fefae0] text-slate-800 max-w-xl w-full rounded-3xl p-6 md:p-10 relative space-y-4 shadow-2xl border-4 border-[#e9edc9] max-h-[90vh] overflow-y-auto">
-            <button onclick="closeLetterModal()" class="absolute top-4 right-4 text-slate-500 hover:text-black text-xl">✕</button>
-            <div class="text-center border-b border-amber-200 pb-4">
-                <span id="letterHeaderTag" class="text-xs uppercase tracking-widest text-amber-700 font-bold">Surat Cinta Rahasia</span>
-                <h3 id="letterTitle" class="font-serif text-3xl font-bold text-amber-900 mt-1">Open When You Miss Me</h3>
-            </div>
-            <div id="letterContent" class="font-serif italic text-lg leading-relaxed text-amber-950 space-y-4 pt-2"></div>
-            <div class="text-right pt-6 font-cursive text-3xl text-amber-900 border-t border-amber-200">
-                Dengan Seluruh Cintaku ❤️
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL POPUP NOTES -->
-    <div id="noteModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-[#fefae0] text-slate-800 max-w-xl w-full rounded-3xl p-6 md:p-10 relative space-y-4 shadow-2xl border-4 border-[#e9edc9] max-h-[90vh] overflow-y-auto">
-            <button onclick="closeNoteModal()" class="absolute top-4 right-4 text-slate-500 hover:text-black text-xl">✕</button>
-            <div class="text-center border-b border-amber-200 pb-4">
-                <span class="text-xs uppercase tracking-widest text-amber-700 font-bold">Coretan Hati</span>
-                <h3 id="noteModalTitle" class="font-serif text-3xl font-bold text-amber-900 mt-1 break-words">Notes 📝</h3>
-                <p id="noteModalTime" class="text-xs text-amber-700/80 mt-2"></p>
-            </div>
-            <div id="noteModalContent" class="font-serif italic text-lg leading-relaxed text-amber-950 space-y-4 pt-2 break-words whitespace-pre-wrap"></div>
-            <div id="noteModalAuthor" class="text-right pt-6 font-cursive text-3xl text-amber-900 border-t border-amber-200"></div>
-        </div>
-    </div>
-
-    <!-- WIDGET LOGIN ADMIN SAMAR (POJOK KIRI BAWAH) -->
-    <div class="admin-login-widget">
-        <button class="admin-toggle-btn" onclick="toggleLoginBox()">
-            <i class="fa-solid fa-lock"></i> Admin
-        </button>
-        <div class="admin-login-box" id="adminLoginBox">
-            <h4><i class="fa-solid fa-user-shield"></i> Login Admin</h4>
-            <div class="admin-input-group">
-                <input type="password" id="adminPasswordInput" placeholder="Masukkan Password..." onkeydown="checkEnter(event)">
-                <button onclick="loginAdmin()">Masuk</button>
-            </div>
-            <p id="loginError" style="color: #ff4d6d; font-size: 11px; margin: 6px 0 0 0; display: none;">Password salah!</p>
-        </div>
-    </div>
-
-    <!-- Custom Script JS -->
+    <!-- SCRIPT UTAMA -->
     <script src="script.js"></script>
 </body>
 </html>
