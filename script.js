@@ -18,7 +18,9 @@ const currentYearEl = document.getElementById('currentYear');
 if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
 
 // 1. PASSWORD ADMIN
-const ADMIN_PASSWORD = "admin123";
+// Password admin TIDAK lagi disimpan di kode. Login dicek oleh Firebase Authentication (backend Google).
+// Isi dengan email akun admin yang kamu buat di Firebase Console -> Authentication -> Users.
+const ADMIN_EMAIL = "adminkenzo@gmail.com";
 
 // 2. DETEKSI PERANGKAT DAN BROWSER RINCI
 function getDeviceType() {
@@ -69,17 +71,33 @@ let joinTime = new Date().toLocaleString('id-ID');
 let isHistoryRecorded = false;
 
 // FUNGSI KHUSUS UNTUK MEMAKSA TULIS HISTORY SAAT SAFARI iOS DITUTUP
+function buildHistoryPayload(endLabel) {
+    const p = {
+        sessionId: sessionId,
+        device: userDevice,
+        timestamp: `${joinTime} - ${endLabel}`,
+        status: "Selesai (Keluar Web)"
+    };
+    if (typeof lastLocation !== 'undefined' && lastLocation) p.location = lastLocation;
+    return p;
+}
+
+// Daftarkan ulang cadangan riwayat (saat koneksi putus) agar ikut membawa lokasi terakhir
+function refreshHistoryOnDisconnect() {
+    historyRef.onDisconnect().set(buildHistoryPayload('Terputus'));
+}
+
+function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 function forceSaveHistory() {
     if (isHistoryRecorded) return;
     isHistoryRecorded = true;
 
     const exitTime = new Date().toLocaleTimeString('id-ID');
-    const payload = {
-        sessionId: sessionId,
-        device: userDevice,
-        timestamp: `${joinTime} - ${exitTime}`,
-        status: "Selesai (Keluar Web)"
-    };
+    const payload = buildHistoryPayload(exitTime);
+    sendToSheet('exit', { exitAt: new Date().toLocaleString('id-ID') });
 
     // Menggunakan Fetch dengan keepalive: true agar tetap dikirim saat iOS menutup browser
     const url = `${firebaseConfig.databaseURL}/history/${sessionId}.json`;
@@ -108,19 +126,17 @@ connectedRef.on('value', (snap) => {
 
         // Backup Firebase jika server terputus
         userPresenceRef.onDisconnect().remove();
-        historyRef.onDisconnect().set({
-            sessionId: sessionId,
-            device: userDevice,
-            timestamp: `${joinTime} - Terputus`,
-            status: "Selesai (Keluar Web)"
-        });
+        refreshHistoryOnDisconnect();
 
         // Simpan data online aktif
         userPresenceRef.set({
             online: true,
             device: userDevice,
-            joinedAt: joinTime
+            joinedAt: joinTime,
+            geoStatus: geoStatus,
+            location: lastLocation || null
         });
+        sendToSheet('join');
     }
 });
 
@@ -133,6 +149,308 @@ document.addEventListener('visibilitychange', function () {
     }
 });
 
+// ===== SAMBUNGAN KE GOOGLE SHEETS =====
+// Isi dua baris ini setelah Apps Script di-deploy (lihat panduan). Kosongkan URL untuk menonaktifkan.
+const SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbz0tNRIYYzMVoZwmpR3_WmTEui6K9o5i-TReHY5Eg_bthB1QKGo-wvwQEgCoONWXwqM/exec';   // contoh: 'https://script.google.com/macros/s/XXXX/exec'
+const SHEET_TOKEN = '05052009';   // harus sama dengan TOKEN di Code.gs
+let lastSheetSent = 0;
+
+let sheetWarned = false;
+function sendToSheet(type, extra) {
+    if (!SHEET_WEBHOOK_URL) {
+        if (!sheetWarned) { console.warn('[Sheet] SHEET_WEBHOOK_URL masih kosong di script.js, jadi data tidak dikirim ke Google Sheets.'); sheetWarned = true; }
+        return;
+    }
+    console.log('[Sheet] mengirim:', type);
+    const loc = lastLocation || {};
+    const body = Object.assign({
+        token: SHEET_TOKEN, type: type, sessionId: sessionId, device: userDevice, joinedAt: joinTime, ms: Date.now(),
+        lat: loc.lat, lng: loc.lng, accuracy: loc.accuracy, place: loc.place,
+        updatedAt: loc.updatedAt ? new Date(loc.updatedAt).toLocaleString('id-ID') : ''
+    }, extra || {});
+    try {
+        fetch(SHEET_WEBHOOK_URL, { method: 'POST', mode: 'no-cors', keepalive: type === 'exit', body: JSON.stringify(body) }).catch(() => {});
+    } catch (e) {}
+}
+
+// LOKASI REAL-TIME (hanya jika pengunjung mengizinkan)
+let lastLocation = null;
+let geoStatus = 'Belum diizinkan';
+let geoWatchId = null;
+let lastGeoSent = 0;
+let lastPlaceCoords = null;
+
+function distanceKm(a, b) {
+    const R = 6371, toRad = d => d * Math.PI / 180;
+    const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+    const x = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(x));
+}
+
+function showGeoBanner(show) {
+    const el = document.getElementById('geoConsentBanner');
+    if (el) el.classList.toggle('hidden', !show);
+}
+
+function showGeoStopBtn(show) {
+    const el = document.getElementById('geoStopBtn');
+    if (el) el.classList.toggle('hidden', !show);
+}
+
+function setGeoStatus(status) {
+    geoStatus = status;
+    userPresenceRef.update({ geoStatus: status }).catch(() => {});
+}
+
+let geoHighAccuracy = true;
+let geoRetryTimer = null;
+
+function startLocationSharing() {
+    if (!navigator.geolocation) { setGeoStatus('Tidak didukung browser'); return; }
+    if (geoWatchId !== null) return;
+    clearTimeout(geoRetryTimer);
+    setGeoStatus('Mencari lokasi...');
+    geoWatchId = navigator.geolocation.watchPosition(onGeoSuccess, onGeoError, {
+        enableHighAccuracy: geoHighAccuracy, maximumAge: 30000, timeout: geoHighAccuracy ? 12000 : 30000
+    });
+}
+
+function onGeoSuccess(pos) {
+    console.log('[Lokasi] terdeteksi, akurasi', Math.round(pos.coords.accuracy), 'm');
+    localStorage.setItem('sanctuary_geo_consent', 'accepted');
+    showGeoBanner(false);
+    showGeoStopBtn(true);
+    const now = Date.now();
+    if (now - lastGeoSent < 5000) return;
+    lastGeoSent = now;
+
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    lastLocation = Object.assign({}, lastLocation, {
+        lat, lng, accuracy: Math.round(pos.coords.accuracy), updatedAt: now
+    });
+    geoStatus = 'Aktif';
+    userPresenceRef.update({ location: lastLocation, geoStatus: 'Aktif' }).catch(() => {});
+    refreshHistoryOnDisconnect();
+    if (now - lastSheetSent > 30000) { lastSheetSent = now; sendToSheet('location'); }
+    maybeReverseGeocode(lat, lng);
+}
+
+function onGeoError(err) {
+    console.warn('[Lokasi] error kode', err.code, err.message);
+    if (geoWatchId !== null) { navigator.geolocation.clearWatch(geoWatchId); geoWatchId = null; }
+
+    if (err.code === 1) {   // izin ditolak / diblokir
+        showGeoStopBtn(false);
+        localStorage.removeItem('sanctuary_geo_consent');
+        setGeoStatus('Ditolak pengunjung');
+        showBlockedHintIfDenied();
+        scheduleGeoReminder();
+        return;
+    }
+
+    // kode 2 = posisi tidak tersedia, kode 3 = waktu habis: coba mode jaringan (Wi-Fi/IP) lalu terus mencoba
+    if (geoHighAccuracy) { geoHighAccuracy = false; startLocationSharing(); return; }
+    setGeoStatus(err.code === 3 ? 'Lokasi: waktu habis, mencoba lagi' : 'Lokasi: tidak tersedia, mencoba lagi');
+    if (sessionStorage.getItem('sanctuary_geo_stopped') === '1') return;
+    geoRetryTimer = setTimeout(startLocationSharing, 20000);
+}
+
+function maybeReverseGeocode(lat, lng) {
+    if (lastPlaceCoords && distanceKm(lastPlaceCoords, { lat, lng }) < 1) return;
+    lastPlaceCoords = { lat, lng };
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=id&lat=${lat}&lon=${lng}`)
+        .then(r => r.json())
+        .then(d => {
+            const a = d.address || {};
+            const place = [a.suburb || a.village || a.neighbourhood, a.city || a.town || a.county, a.state, a.country]
+                .filter(Boolean).join(', ') || d.display_name || '';
+            if (!place) return;
+            if (lastLocation) lastLocation.place = place;
+            userPresenceRef.child('location/place').set(place).catch(() => {});
+            refreshHistoryOnDisconnect();
+            sendToSheet('location');
+        })
+        .catch(() => {});
+}
+
+function acceptLocationSharing() {
+    localStorage.setItem('sanctuary_geo_consent', 'accepted');
+    showGeoBanner(false);
+    startLocationSharing();
+}
+
+function declineLocationSharing() {
+    // "Nanti saja" TIDAK disimpan permanen: banner muncul lagi tiap beberapa detik
+    // dan di setiap kunjungan berikutnya, sampai pengunjung menekan "Izinkan".
+    showGeoBanner(false);
+    scheduleGeoReminder();
+}
+
+let geoReminderTimer = null;
+const GEO_REMINDER_MS = 45000; // ubah angka ini untuk mengatur jeda munculnya banner lagi
+function scheduleGeoReminder() {
+    clearTimeout(geoReminderTimer);
+    geoReminderTimer = setTimeout(() => {
+        if (geoWatchId !== null) return;
+        if (sessionStorage.getItem('sanctuary_geo_stopped') === '1') return;
+        if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions.query({ name: 'geolocation' }).then(p => {
+                if (p.state === 'prompt') showGeoBanner(true);
+                else if (p.state === 'granted') startLocationSharing();
+            }).catch(() => showGeoBanner(true));
+        } else {
+            showGeoBanner(true);
+        }
+    }, GEO_REMINDER_MS);
+}
+
+function stopLocationSharing() {
+    if (geoWatchId !== null) { navigator.geolocation.clearWatch(geoWatchId); geoWatchId = null; }
+    sessionStorage.setItem('sanctuary_geo_stopped', '1');   // berlaku selama tab ini saja
+    localStorage.removeItem('sanctuary_geo_consent');       // kunjungan berikutnya ditanya lagi
+    lastLocation = null;
+    userPresenceRef.child('location').remove().catch(() => {});
+    refreshHistoryOnDisconnect();
+    sendToSheet('stop');
+    setGeoStatus('Dihentikan pengunjung');
+    showGeoStopBtn(false);
+}
+
+function showBlockedHintIfDenied() {
+    if (!(navigator.permissions && navigator.permissions.query)) return;
+    navigator.permissions.query({ name: 'geolocation' }).then(p => {
+        const el = document.getElementById('geoBlockedHint');
+        if (el) el.classList.toggle('hidden', p.state !== 'denied');
+    }).catch(() => {});
+}
+
+function initLocationConsent() {
+    if (!navigator.geolocation) { setGeoStatus('Tidak didukung browser'); return; }
+    // bersihkan nilai lama dari versi sebelumnya
+    const old = localStorage.getItem('sanctuary_geo_consent');
+    if (old === 'stopped' || old === 'declined') localStorage.removeItem('sanctuary_geo_consent');
+
+    if (sessionStorage.getItem('sanctuary_geo_stopped') === '1') { setGeoStatus('Dihentikan pengunjung'); return; }
+    if (localStorage.getItem('sanctuary_geo_consent') === 'accepted') { startLocationSharing(); return; }
+
+    if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'geolocation' })
+            .then(p => {
+                if (p.state === 'granted') {
+                    localStorage.setItem('sanctuary_geo_consent', 'accepted');
+                    startLocationSharing();
+                } else if (p.state === 'denied') {
+                    setGeoStatus('Diblokir browser');
+                    showBlockedHintIfDenied();
+                } else {
+                    showGeoBanner(true);
+                }
+            })
+            .catch(() => showGeoBanner(true));
+    } else {
+        showGeoBanner(true);
+    }
+}
+window.addEventListener('load', initLocationConsent);
+
+let locationListenerStarted = false;
+function listenToLocationData() {
+    if (locationListenerStarted) return;
+    locationListenerStarted = true;
+    db.ref('presence').on('value', (snapshot) => {
+        const tbody = document.getElementById('locationTableBody');
+        tbody.innerHTML = '';
+        const data = snapshot.val();
+        if (!data) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-400">Tidak ada pengunjung aktif.</td></tr>';
+            return;
+        }
+        Object.keys(data).forEach((key) => {
+            const v = data[key], loc = v.location;
+            const tr = document.createElement('tr');
+            const cell = (text) => { const td = document.createElement('td'); td.textContent = text; tr.appendChild(td); return td; };
+
+            const statusTd = cell(' Online');
+            const dot = document.createElement('span');
+            dot.className = 'status-dot';
+            statusTd.prepend(dot);
+
+            cell(key).style.fontFamily = 'monospace';
+            cell(v.device || 'Unknown');
+
+            if (loc && typeof loc.lat === 'number') {
+                cell(loc.place || 'Mencari nama lokasi...');
+                cell(`${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`);
+                cell(`±${loc.accuracy} m`);
+                cell(new Date(loc.updatedAt).toLocaleTimeString('id-ID'));
+                const td = document.createElement('td');
+                const a = document.createElement('a');
+                a.href = `https://www.google.com/maps?q=${loc.lat},${loc.lng}`;
+                a.target = '_blank'; a.rel = 'noopener';
+                a.textContent = 'Buka Peta';
+                a.style.color = '#ffd700';
+                td.appendChild(a);
+                tr.appendChild(td);
+            } else {
+                const td = cell(v.geoStatus || 'Belum diizinkan');
+                td.colSpan = 5;
+                td.style.color = '#94a3b8';
+            }
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+// EXPORT KE EXCEL (Lokasi Real-Time + Riwayat Login)
+function exportToExcel() {
+    if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat. Cek koneksi internet lalu coba lagi.'); return; }
+    Promise.all([db.ref('presence').once('value'), db.ref('history').once('value')]).then(([pSnap, hSnap]) => {
+        const p = pSnap.val() || {}, h = hSnap.val() || {};
+        const mapLink = (l) => (l && typeof l.lat === 'number') ? `https://www.google.com/maps?q=${l.lat},${l.lng}` : '';
+
+        const locRows = Object.keys(p).map((k) => {
+            const v = p[k], l = v.location || {};
+            return {
+                'Status': 'Online',
+                'Sesi ID': k,
+                'Perangkat': v.device || 'Unknown',
+                'Masuk': v.joinedAt || '',
+                'Status Lokasi': v.geoStatus || '',
+                'Lokasi': l.place || '',
+                'Latitude': typeof l.lat === 'number' ? l.lat : '',
+                'Longitude': typeof l.lng === 'number' ? l.lng : '',
+                'Akurasi (m)': l.accuracy != null ? l.accuracy : '',
+                'Update Terakhir': l.updatedAt ? new Date(l.updatedAt).toLocaleString('id-ID') : '',
+                'Link Google Maps': mapLink(l)
+            };
+        });
+
+        const histRows = Object.keys(h).reverse().map((k) => {
+            const v = h[k], l = v.location || {};
+            return {
+                'Waktu Akses': v.timestamp || '',
+                'Sesi ID': v.sessionId || k,
+                'Perangkat / Browser': v.device || 'Unknown',
+                'Status Akhir': v.status || '',
+                'Lokasi Terakhir': l.place || '',
+                'Latitude': typeof l.lat === 'number' ? l.lat : '',
+                'Longitude': typeof l.lng === 'number' ? l.lng : '',
+                'Akurasi (m)': l.accuracy != null ? l.accuracy : '',
+                'Link Google Maps': mapLink(l)
+            };
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.json_to_sheet(locRows.length ? locRows : [{ 'Info': 'Belum ada pengunjung online saat ini' }]);
+        ws1['!cols'] = [{wch:9},{wch:16},{wch:28},{wch:20},{wch:22},{wch:38},{wch:12},{wch:12},{wch:12},{wch:20},{wch:42}];
+        const ws2 = XLSX.utils.json_to_sheet(histRows.length ? histRows : [{ 'Info': 'Belum ada riwayat kunjungan' }]);
+        ws2['!cols'] = [{wch:34},{wch:16},{wch:28},{wch:22},{wch:38},{wch:12},{wch:12},{wch:12},{wch:42}];
+        XLSX.utils.book_append_sheet(wb, ws1, 'Lokasi Real-Time');
+        XLSX.utils.book_append_sheet(wb, ws2, 'Riwayat Login');
+        XLSX.writeFile(wb, `data-pengunjung-${new Date().toISOString().slice(0,10)}.xlsx`);
+    }).catch((e) => alert('Gagal mengambil data dari Firebase: ' + e.message));
+}
+
 // 3. LOGIC TOGGLE & LOGIN ADMIN
 function toggleLoginBox() {
     const box = document.getElementById('adminLoginBox');
@@ -144,23 +462,35 @@ function checkEnter(e) {
 }
 
 function loginAdmin() {
-    const inputPw = document.getElementById('adminPasswordInput').value;
+    const pwEl = document.getElementById('adminPasswordInput');
     const errMsgs = document.getElementById('loginError');
+    const inputPw = pwEl.value;
+    if (!inputPw) return;
 
-    if (inputPw === ADMIN_PASSWORD) {
-        errMsgs.style.display = 'none';
-        document.getElementById('adminPasswordInput').value = '';
-        document.getElementById('adminLoginBox').style.display = 'none';
-        
-        const adminSec = document.getElementById('adminDashboardSection');
-        adminSec.classList.remove('hidden');
-        adminSec.scrollIntoView({ behavior: 'smooth' });
-        
-        listenToVisitorData();
-        listenToHistoryData();
-    } else {
-        errMsgs.style.display = 'block';
-    }
+    const auth = firebase.auth();
+    auth.setPersistence(firebase.auth.Auth.Persistence.SESSION) // otomatis logout saat tab ditutup
+        .then(() => auth.signInWithEmailAndPassword(ADMIN_EMAIL, inputPw))
+        .then(() => {
+            errMsgs.style.display = 'none';
+            pwEl.value = '';
+            document.getElementById('adminLoginBox').style.display = 'none';
+
+            const adminSec = document.getElementById('adminDashboardSection');
+            adminSec.classList.remove('hidden');
+            adminSec.scrollIntoView({ behavior: 'smooth' });
+
+            listenToVisitorData();
+            listenToHistoryData();
+            listenToLocationData();
+        })
+        .catch((err) => {
+            const wrong = ['auth/wrong-password', 'auth/invalid-credential', 'auth/invalid-login-credentials', 'auth/user-not-found', 'auth/invalid-email'];
+            errMsgs.textContent = wrong.includes(err.code) ? 'Password salah!'
+                : err.code === 'auth/too-many-requests' ? 'Terlalu banyak percobaan, coba lagi nanti.'
+                : err.code === 'auth/unauthorized-domain' ? 'Domain website belum didaftarkan di Firebase (Authorized domains).'
+                : 'Gagal login: ' + (err.code || err.message);
+            errMsgs.style.display = 'block';
+        });
 }
 
 function closeDashboardSection() {
@@ -215,15 +545,16 @@ function listenToHistoryData() {
                 const item = data[key];
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${item.timestamp || '-'}</td>
-                    <td style="font-family: monospace;">${item.sessionId || key}</td>
-                    <td>${item.device || 'Unknown'}</td>
+                    <td>${esc(item.timestamp || '-')}</td>
+                    <td style="font-family: monospace;">${esc(item.sessionId || key)}</td>
+                    <td>${esc(item.device || 'Unknown')}</td>
+                    <td>${item.location ? esc(item.location.place || (item.location.lat.toFixed(5) + ', ' + item.location.lng.toFixed(5))) : '-'}</td>
                     <td><span class="px-2 py-0.5 text-[10px] rounded bg-pink-500/20 text-pink-300 border border-pink-500/30">Selesai</span></td>
                 `;
                 tbody.appendChild(row);
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400">Belum ada riwayat kunjungan.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-400">Belum ada riwayat kunjungan.</td></tr>';
         }
 
         const historyCountEl = document.getElementById('historyCount');
