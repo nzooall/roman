@@ -925,10 +925,66 @@ function tryAutoplayMusic() {
 
 tryAutoplayMusic();
 
-function sendMissYouPing() {
-    showNotification("Doi baru saja memencet tombol Kangen! 🥰 Seseorang sedang memikirkanmu.");
+// ============================================================
+// NOTIFIKASI KANGEN (OneSignal + Cloudflare Worker)
+// ============================================================
+const ONESIGNAL_APP_ID = "d09086e7-8ca9-4fef-b35a-4afd38b29c79";
+const KANGEN_WORKER_URL = "https://kangen.manroekenzo45.workers.dev/";
+const KANGEN_SECRET = "KENZOAYU";   // harus sama dengan di Worker
+
+// Identitas perangkat: "kenzo" (HP kamu) atau "doi" (HP ceweknya).
+// Diset sekali lewat link ?u=kenzo atau ?u=doi, lalu diingat browser.
+function getMyIdentity() {
+    const q = new URLSearchParams(location.search).get('u');
+    if (q === 'kenzo' || q === 'doi') {
+        try { localStorage.setItem('roman_user', q); } catch (e) {}
+        return q;
+    }
+    try { return localStorage.getItem('roman_user'); } catch (e) { return null; }
+}
+const MY_ID = getMyIdentity();
+
+if (MY_ID) {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function (OneSignal) {
+        await OneSignal.init({
+            appId: ONESIGNAL_APP_ID,
+            serviceWorkerPath: "/roman/OneSignalSDKWorker.js",
+            serviceWorkerParam: { scope: "/roman/" },
+            notifyButton: { enable: false }
+        });
+        await OneSignal.login(MY_ID); // daftarkan perangkat ini sebagai kenzo / doi
+
+        // Minta izin notifikasi saat pertama kali layar disentuh (syarat browser)
+        if (OneSignal.Notifications.permission === false) {
+            const ask = () => OneSignal.Notifications.requestPermission();
+            ['click', 'touchstart'].forEach(evt =>
+                document.addEventListener(evt, ask, { once: true })
+            );
+        }
+    });
+}
+
+async function sendMissYouPing() {
+    if (!MY_ID) {
+        showNotification("Perangkat ini belum didaftarkan. Buka link dengan ?u=kenzo atau ?u=doi dulu.");
+        return;
+    }
     playChimeSound();
     spawnHeartExplosion(window.innerWidth / 2, window.innerHeight / 2);
+
+    try {
+        const res = await fetch(KANGEN_WORKER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ from: MY_ID, secret: KANGEN_SECRET })
+        });
+        showNotification(res.ok
+            ? "Sinyal kangen terkirim! 💕"
+            : "Gagal kirim sinyal, coba lagi ya.");
+    } catch (e) {
+        showNotification("Gagal kirim sinyal, cek koneksi internet.");
+    }
 }
 
 function showNotification(msg) {
