@@ -929,45 +929,84 @@ tryAutoplayMusic();
 // NOTIFIKASI KANGEN (OneSignal + Cloudflare Worker)
 // ============================================================
 const ONESIGNAL_APP_ID = "d09086e7-8ca9-4fef-b35a-4afd38b29c79";
-const KANGEN_WORKER_URL = "https://kangen.manroekenzo45.workers.dev/";
-const KANGEN_SECRET = "KENZOAYU";   // harus sama dengan di Worker
+const KANGEN_WORKER_URL = "https://kangen.manroekenzo45.workers.dev";
+const KANGEN_SECRET = "MANURUNG2009";
 
 // Identitas perangkat: "kenzo" (HP kamu) atau "doi" (HP ceweknya).
-// Diset sekali lewat link ?u=kenzo atau ?u=doi, lalu diingat browser.
+// Diset sekali lewat ?u=kenzo atau ?u=doi, lalu diingat browser. ?u=reset untuk menghapus.
 function getMyIdentity() {
     const q = new URLSearchParams(location.search).get('u');
-    if (q === 'kenzo' || q === 'doi') {
-        try { localStorage.setItem('roman_user', q); } catch (e) {}
-        return q;
-    }
-    try { return localStorage.getItem('roman_user'); } catch (e) { return null; }
+    try {
+        if (q === 'reset') { localStorage.removeItem('roman_user'); return null; }
+        if (q === 'kenzo' || q === 'doi') { localStorage.setItem('roman_user', q); return q; }
+        return localStorage.getItem('roman_user');
+    } catch (e) { return (q === 'kenzo' || q === 'doi') ? q : null; }
 }
 const MY_ID = getMyIdentity();
+let pushBtnEl = null;
+
+function setPushButton(active) {
+    if (!MY_ID) return;
+    if (!pushBtnEl) {
+        pushBtnEl = document.createElement('button');
+        pushBtnEl.style.cssText = 'position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:60;' +
+            'background:#ff4d6d;color:#fff;border:none;border-radius:999px;padding:10px 18px;font-size:13px;' +
+            'font-weight:700;box-shadow:0 6px 20px rgba(255,77,109,.5);cursor:pointer;font-family:inherit;';
+        pushBtnEl.textContent = '🔔 Aktifkan Notifikasi';
+        pushBtnEl.onclick = enablePush;
+        document.body.appendChild(pushBtnEl);
+    }
+    pushBtnEl.style.display = active ? 'none' : 'block';
+}
+
+async function enablePush() {
+    const OS = window._OS;
+    if (!OS) { showNotification('OneSignal belum siap, tunggu sebentar lalu coba lagi.'); return; }
+    try {
+        await OS.Notifications.requestPermission();
+        if (OS.Notifications.permission) {
+            await OS.User.PushSubscription.optIn();
+            await OS.login(MY_ID);
+            setPushButton(true);
+            showNotification('Notifikasi aktif untuk "' + MY_ID + '" ✅');
+        } else {
+            showNotification('Izin notifikasi ditolak. Buka pengaturan situs di Chrome → Notifikasi → Izinkan.');
+        }
+    } catch (e) {
+        console.error('[Push] gagal aktifkan:', e);
+        showNotification('Gagal mengaktifkan notifikasi.');
+    }
+}
 
 if (MY_ID) {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     OneSignalDeferred.push(async function (OneSignal) {
-        await OneSignal.init({
-            appId: ONESIGNAL_APP_ID,
-            serviceWorkerPath: "/roman/OneSignalSDKWorker.js",
-            serviceWorkerParam: { scope: "/roman/" },
-            notifyButton: { enable: false }
-        });
-        await OneSignal.login(MY_ID); // daftarkan perangkat ini sebagai kenzo / doi
-
-        // Minta izin notifikasi saat pertama kali layar disentuh (syarat browser)
-        if (OneSignal.Notifications.permission === false) {
-            const ask = () => OneSignal.Notifications.requestPermission();
-            ['click', 'touchstart'].forEach(evt =>
-                document.addEventListener(evt, ask, { once: true })
-            );
+        try {
+            await OneSignal.init({
+                appId: ONESIGNAL_APP_ID,
+                serviceWorkerPath: "/roman/OneSignalSDKWorker.js",
+                serviceWorkerParam: { scope: "/roman/" },
+                notifyButton: { enable: false }
+            });
+            window._OS = OneSignal;
+            await OneSignal.login(MY_ID);
+            const active = OneSignal.Notifications.permission && OneSignal.User.PushSubscription.optedIn;
+            console.log('[Push] id=' + MY_ID, 'izin=' + OneSignal.Notifications.permission,
+                        'optedIn=' + OneSignal.User.PushSubscription.optedIn);
+            setPushButton(!!active);
+            OneSignal.User.PushSubscription.addEventListener('change', (e) => {
+                setPushButton(!!e.current.optedIn);
+            });
+        } catch (e) {
+            console.error('[Push] init gagal:', e);
+            showNotification('OneSignal gagal dimuat: ' + (e && e.message ? e.message : e));
         }
     });
 }
 
 async function sendMissYouPing() {
     if (!MY_ID) {
-        showNotification("Perangkat ini belum didaftarkan. Buka link dengan ?u=kenzo atau ?u=doi dulu.");
+        showNotification('Perangkat belum didaftarkan. Buka link dengan ?u=kenzo atau ?u=doi dulu.');
         return;
     }
     playChimeSound();
@@ -979,11 +1018,23 @@ async function sendMissYouPing() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ from: MY_ID, secret: KANGEN_SECRET })
         });
-        showNotification(res.ok
-            ? "Sinyal kangen terkirim! 💕"
-            : "Gagal kirim sinyal, coba lagi ya.");
+        let data = {};
+        try { data = await res.json(); } catch (e) {}
+        console.log('[Kangen] status', res.status, data);
+
+        if (res.ok && data.ok) {
+            showNotification('Sinyal kangen terkirim! 💕');
+        } else if (data.reason === 'no_target') {
+            showNotification('HP pasanganmu belum aktif notifikasinya. Minta dia buka linknya & tekan tombol 🔔.');
+        } else if (data.reason === 'bad_secret') {
+            showNotification('Kode rahasia di script.js tidak sama dengan di Cloudflare.');
+        } else if (data.reason === 'bad_key') {
+            showNotification('API key OneSignal di Cloudflare salah.');
+        } else {
+            showNotification('Gagal kirim (' + (data.reason || res.status) + '). Lihat console.');
+        }
     } catch (e) {
-        showNotification("Gagal kirim sinyal, cek koneksi internet.");
+        showNotification('Gagal terhubung ke server, cek internet.');
     }
 }
 
