@@ -984,6 +984,7 @@ function getStoredId() {
         return (s === 'kenzo' || s === 'doi') ? s : null;
     } catch (e) { return null; }
 }
+const PUSH_VERSION = '2';   // naikkan angka ini (misal '3') kalau suatu saat semua HP perlu daftar ulang
 let MY_ID = IS_PRIVATE ? getStoredId() : null;
 let pushReady = false;      // true setelah izin diberikan DAN HP berhasil terdaftar
 let lastPingAt = 0;
@@ -1005,7 +1006,7 @@ async function callKangen(payload) {
 
 // Daftarkan HP ini ke FCM lalu simpan tokennya di Apps Script.
 // Melempar error (throw) kalau gagal supaya alasannya bisa ditampilkan.
-async function registerPushToken(askPermission) {
+async function registerPushToken(askPermission, fresh) {
     if (!pushSupported()) throw new Error('unsupported');
     if (!MY_ID) throw new Error('no_identity');
     if (Notification.permission !== 'granted') {
@@ -1016,6 +1017,15 @@ async function registerPushToken(askPermission) {
     const reg = await navigator.serviceWorker.register('/roman/firebase-messaging-sw.js', { scope: '/roman/' });
     await navigator.serviceWorker.ready;
     const messaging = firebase.messaging();
+    // Langganan baru: buang token/langganan lama (bisa basi atau dibuat dengan kunci lain), lalu minta yang baru
+    const needFresh = fresh || localStorage.getItem('roman_push_v') !== PUSH_VERSION;
+    if (needFresh) {
+        try { await messaging.deleteToken(); } catch (e) { console.warn('[Push] deleteToken:', e); }
+        try {
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) await sub.unsubscribe();
+        } catch (e) { console.warn('[Push] unsubscribe:', e); }
+    }
     const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
     if (!token) throw new Error('no_token');
     const r = await callKangen({ type: 'register', id: MY_ID, token: token });
@@ -1030,6 +1040,7 @@ async function registerPushToken(askPermission) {
             showNotification((p.notification && p.notification.body) || 'Sinyal kangen masuk 💕');
         });
     }
+    try { localStorage.setItem('roman_push_v', PUSH_VERSION); } catch (e) { }
     pushReady = true;
     return true;
 }
@@ -1110,7 +1121,7 @@ function renderPushGate(card, message) {
         btn.disabled = true;
         btn.textContent = 'Menunggu izin...';
         try {
-            await registerPushToken(true);
+            await registerPushToken(true, true);
             closePushGate();
             showNotification('Notifikasi aktif ✅ Sekarang kamu bisa kirim sinyal kangen 💕');
         } catch (e) {
@@ -1163,7 +1174,7 @@ async function sendMissYouPing() {
         const data = await callKangen({ type: 'ping', id: MY_ID });
         console.log('[Kangen]', data);
         if (data.ok) showNotification('Sinyal kangen terkirim! 💕');
-        else if (data.reason === 'no_target') showNotification('HP pasanganmu belum mengizinkan notifikasi. Minta dia buka alamat rahasia ini dan tekan Izinkan.');
+        else if (data.reason === 'no_target') showNotification('HP pasanganmu belum siap menerima. Minta dia membuka alamat rahasia ini sekali lagi dan tekan Izinkan Notifikasi.');
         else if (data.reason === 'bad_secret') showNotification('Kode rahasia di script.js tidak sama dengan SECRET di Apps Script.');
         else showNotification('Gagal kirim (' + (data.reason || 'unknown') + '). Lihat console.');
     } catch (e) {
