@@ -1,3 +1,11 @@
+// ============================================================
+// >>> ISI 3 KUNCI INI (hanya ini yang perlu kamu ubah) <<<
+// ============================================================
+const KANGEN_URL = "https://script.google.com/macros/s/AKfycbw2jKaVQUsVojkZj91qcr0d8U-yFQK30Dgwhl2lLst5LTRzrXcpjVCSx9XWYXcTH0Q4Vw/exec";      // URL /exec dari Apps Script
+const KANGEN_SECRET = "zozoo";    // sama persis dengan SECRET di Apps Script
+const VAPID_KEY = "BKiWc4sW6SIY6J2qp9mpVBo8S3FCZkY8yufO4Phbb5I1uh4bOQ2GpCxeRBETtRk8cds1sT4vUtUU7mss2uN2pCA";         // Firebase > Cloud Messaging > Web Push certificates
+// ============================================================
+
 // Konfigurasi & Inisialisasi Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyAlkY_-xWPzop1Lg4-PQj_hqOkevwIsRzE",
@@ -965,26 +973,26 @@ tryAutoplayMusic();
 
 // ============================================================
 // NOTIFIKASI KANGEN (Firebase Cloud Messaging + Google Apps Script)
-// Hanya aktif di halaman PRIVAT.
+// Hanya aktif di halaman PRIVAT. Tiga kunci ada di baris paling atas file ini.
 // ============================================================
-const KANGEN_URL = "https://script.google.com/macros/s/AKfycbw2jKaVQUsVojkZj91qcr0d8U-yFQK30Dgwhl2lLst5LTRzrXcpjVCSx9XWYXcTH0Q4Vw/exec";      // URL /exec dari Apps Script
-const KANGEN_SECRET = "zozoo";    // sama persis dengan SECRET di Script Properties
-const VAPID_KEY = "BKiWc4sW6SIY6J2qp9mpVBo8S3FCZkY8yufO4Phbb5I1uh4bOQ2GpCxeRBETtRk8cds1sT4vUtUU7mss2uN2pCA";         // Firebase > Cloud Messaging > Web Push certificates
-
-// Identitas perangkat: "kenzo" atau "doi". Set lewat ?u=kenzo / ?u=doi, ?u=reset untuk menghapus.
-function getMyIdentity() {
-    if (!IS_PRIVATE) return null;
-    const q = new URLSearchParams(location.search).get('u');
+function getStoredId() {
     try {
+        const q = new URLSearchParams(location.search).get('u');
         if (q === 'reset') { localStorage.removeItem('roman_user'); return null; }
         if (q === 'kenzo' || q === 'doi') { localStorage.setItem('roman_user', q); return q; }
-        return localStorage.getItem('roman_user');
-    } catch (e) { return (q === 'kenzo' || q === 'doi') ? q : null; }
+        const s = localStorage.getItem('roman_user');
+        return (s === 'kenzo' || s === 'doi') ? s : null;
+    } catch (e) { return null; }
 }
-const MY_ID = getMyIdentity();
-let pushBtnEl = null;
+let MY_ID = IS_PRIVATE ? getStoredId() : null;
+let pushReady = false;      // true setelah izin diberikan DAN HP berhasil terdaftar
 let lastPingAt = 0;
 let fcmListening = false;
+let gateEl = null;
+
+function pushSupported() {
+    return ('Notification' in window) && ('serviceWorker' in navigator) && ('PushManager' in window);
+}
 
 async function callKangen(payload) {
     const res = await fetch(KANGEN_URL, {
@@ -995,83 +1003,153 @@ async function callKangen(payload) {
     return res.json();
 }
 
-function setPushButton(active) {
-    if (!MY_ID) return;
-    if (!pushBtnEl) {
-        pushBtnEl = document.createElement('button');
-        pushBtnEl.style.cssText = 'position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:60;' +
-            'background:#ff4d6d;color:#fff;border:none;border-radius:999px;padding:10px 18px;font-size:13px;' +
-            'font-weight:700;box-shadow:0 6px 20px rgba(255,77,109,.5);cursor:pointer;font-family:inherit;';
-        pushBtnEl.textContent = '🔔 Aktifkan Notifikasi';
-        pushBtnEl.onclick = enablePush;
-        document.body.appendChild(pushBtnEl);
-    }
-    pushBtnEl.style.display = active ? 'none' : 'block';
-}
-
+// Daftarkan HP ini ke FCM lalu simpan tokennya di Apps Script.
+// Melempar error (throw) kalau gagal supaya alasannya bisa ditampilkan.
 async function registerPushToken(askPermission) {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-        showNotification('Browser ini belum mendukung notifikasi. Di iPhone, tambahkan situs ke Home Screen dulu.');
-        return false;
-    }
+    if (!pushSupported()) throw new Error('unsupported');
+    if (!MY_ID) throw new Error('no_identity');
     if (Notification.permission !== 'granted') {
-        if (!askPermission) return false;
+        if (!askPermission) throw new Error('not_granted');
         const perm = await Notification.requestPermission();
-        if (perm !== 'granted') {
-            showNotification('Izin notifikasi ditolak. Buka pengaturan situs di Chrome → Notifikasi → Izinkan.');
-            return false;
-        }
+        if (perm !== 'granted') throw new Error('denied');
     }
     const reg = await navigator.serviceWorker.register('/roman/firebase-messaging-sw.js', { scope: '/roman/' });
     await navigator.serviceWorker.ready;
     const messaging = firebase.messaging();
     const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-    if (!token) return false;
+    if (!token) throw new Error('no_token');
     const r = await callKangen({ type: 'register', id: MY_ID, token: token });
     console.log('[Push] register', r);
+    if (!r.ok) throw new Error('register_' + (r.reason || 'gagal'));
     if (!fcmListening) {
         fcmListening = true;
-        // Notifikasi saat halaman sedang terbuka
+        // Saat halaman ini sedang terbuka, notifikasi tampil sebagai pop-up di dalam halaman
         messaging.onMessage(p => {
             playChimeSound();
             spawnHeartExplosion(window.innerWidth / 2, window.innerHeight / 2);
             showNotification((p.notification && p.notification.body) || 'Sinyal kangen masuk 💕');
         });
     }
-    return !!r.ok;
+    pushReady = true;
+    return true;
 }
 
-async function enablePush() {
-    try {
-        const ok = await registerPushToken(true);
-        if (ok) {
-            setPushButton(true);
-            showNotification('Notifikasi aktif untuk "' + MY_ID + '" ✅');
-        } else {
-            showNotification('Gagal mendaftarkan notifikasi. Lihat console.');
-        }
-    } catch (e) {
-        console.error('[Push] gagal aktifkan:', e);
-        showNotification('Gagal mengaktifkan notifikasi. Lihat console.');
-    }
-}
+// ---------- Pop-up izin notifikasi ----------
+function closePushGate() { if (gateEl) { gateEl.remove(); gateEl = null; } }
 
-// Saat halaman dibuka: kalau izin sudah diberikan, token diperbarui otomatis
-if (MY_ID) {
-    if ('Notification' in window && Notification.permission === 'granted') {
-        setPushButton(true);
-        registerPushToken(false).catch(e => console.error('[Push] refresh gagal:', e));
-    } else {
-        setPushButton(false);
-    }
-}
-
-async function sendMissYouPing() {
+function showPushGate(message) {
     if (!IS_PRIVATE) return;
+    closePushGate();
+    gateEl = document.createElement('div');
+    gateEl.style.cssText = 'position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.82);' +
+        'backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#1d0720;border:1px solid rgba(255,182,193,.3);border-radius:24px;' +
+        'padding:24px;max-width:380px;width:100%;text-align:center;color:#f1f5f9;font-family:inherit;' +
+        'box-shadow:0 20px 60px rgba(0,0,0,.6);max-height:90vh;overflow-y:auto;';
+    gateEl.appendChild(card);
+    document.body.appendChild(gateEl);
+    renderPushGate(card, message);
+}
+
+function gateButton(label, primary, onClick) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.style.cssText = 'display:block;width:100%;margin-top:10px;padding:12px;border-radius:14px;font-size:14px;' +
+        'font-weight:700;cursor:pointer;font-family:inherit;border:1px solid rgba(255,255,255,.15);' +
+        (primary ? 'background:linear-gradient(90deg,#ff4d6d,#db2777);color:#fff;border:none;'
+                 : 'background:rgba(255,255,255,.06);color:#cbd5e1;font-weight:500;');
+    b.onclick = onClick;
+    return b;
+}
+
+function gateText(title, body, extra) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = '<div style="font-size:40px;margin-bottom:6px;">' + title.icon + '</div>' +
+        '<div style="font-size:18px;font-weight:700;color:#fff;">' + title.text + '</div>' +
+        '<div style="font-size:13px;color:#cbd5e1;margin-top:8px;line-height:1.5;">' + body + '</div>' +
+        (extra ? '<div style="font-size:12px;color:#ff758f;margin-top:10px;line-height:1.4;">' + extra + '</div>' : '');
+    return wrap;
+}
+
+function renderPushGate(card, message) {
+    card.innerHTML = '';
+
+    // Langkah 1: siapa kamu?
     if (!MY_ID) {
-        showNotification('Perangkat belum didaftarkan. Buka link dengan ?u=kenzo atau ?u=doi dulu.');
+        card.appendChild(gateText({ icon: '💞', text: 'Kamu siapa?' },
+            'Pilih sekali saja. HP ini akan mengingatnya, jadi sinyal kangen sampai ke orang yang tepat.'));
+        card.appendChild(gateButton('Aku Kenzo', true, () => { setIdentity('kenzo', card); }));
+        card.appendChild(gateButton('Aku Doi', true, () => { setIdentity('doi', card); }));
+        card.appendChild(gateButton('Nanti saja', false, closePushGate));
         return;
     }
+
+    // Browser tidak mendukung
+    if (!pushSupported()) {
+        card.appendChild(gateText({ icon: '📵', text: 'Browser ini belum mendukung notifikasi' },
+            'Di iPhone: buka lewat Safari, tekan tombol Share, pilih <b>Add to Home Screen</b>, lalu buka situs dari ikon itu (butuh iOS 16.4 ke atas). Di Android, pakai Chrome.'));
+        card.appendChild(gateButton('Tutup', false, closePushGate));
+        return;
+    }
+
+    // Izin diblokir sebelumnya
+    if (Notification.permission === 'denied') {
+        card.appendChild(gateText({ icon: '🔕', text: 'Notifikasi sedang diblokir' },
+            'Buka pengaturan situs: tekan ikon <b>gembok</b> di sebelah alamat web (atau menu ⋮ → Info → Setelan situs), ubah <b>Notifikasi</b> menjadi <b>Izinkan</b>, lalu muat ulang halaman ini.', message));
+        card.appendChild(gateButton('Sudah, coba lagi', true, () => location.reload()));
+        card.appendChild(gateButton('Nanti saja', false, closePushGate));
+        return;
+    }
+
+    // Langkah 2: minta izin
+    const nama = MY_ID === 'kenzo' ? 'Kenzo' : 'Doi';
+    card.appendChild(gateText({ icon: '🔔', text: 'Izinkan notifikasi dulu ya' },
+        'Halo ' + nama + '! Supaya kamu bisa <b>menerima</b> dan <b>mengirim</b> sinyal kangen, notifikasi harus diizinkan. Setelah kamu tekan tombol di bawah, browser akan bertanya. Pilih <b>Izinkan</b>.', message));
+    const btn = gateButton('Izinkan Notifikasi', true, async () => {
+        btn.disabled = true;
+        btn.textContent = 'Menunggu izin...';
+        try {
+            await registerPushToken(true);
+            closePushGate();
+            showNotification('Notifikasi aktif ✅ Sekarang kamu bisa kirim sinyal kangen 💕');
+        } catch (e) {
+            console.error('[Push] gagal:', e);
+            const m = String(e && e.message || e);
+            let pesan = 'Gagal mendaftarkan notifikasi (' + m + '). Coba lagi.';
+            if (m === 'denied') pesan = 'Izin belum diberikan. Tekan tombol lagi lalu pilih Izinkan.';
+            if (m.indexOf('register_') === 0) pesan = 'Server belum merespons dengan benar (' + m + '). Cek KANGEN_URL dan KANGEN_SECRET.';
+            renderPushGate(card, pesan);
+        }
+    });
+    card.appendChild(btn);
+    card.appendChild(gateButton('Nanti saja', false, closePushGate));
+}
+
+function setIdentity(id, card) {
+    try { localStorage.setItem('roman_user', id); } catch (e) { }
+    MY_ID = id;
+    renderPushGate(card);
+}
+
+// ---------- Saat halaman privat dibuka ----------
+async function bootPush() {
+    if (!IS_PRIVATE) return;
+    if (MY_ID && pushSupported() && Notification.permission === 'granted') {
+        try { await registerPushToken(false); return; }
+        catch (e) { console.error('[Push] pendaftaran ulang gagal:', e); }
+    }
+    showPushGate();
+}
+if (IS_PRIVATE) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootPush);
+    else bootPush();
+}
+
+// ---------- Kirim sinyal ----------
+async function sendMissYouPing() {
+    if (!IS_PRIVATE) return;
+    if (!pushReady) { showPushGate(); return; }          // wajib izinkan notifikasi dulu
     if (Date.now() - lastPingAt < 5000) {
         showNotification('Sabar sebentar ya, jangan terlalu cepat 😄');
         return;
@@ -1085,8 +1163,8 @@ async function sendMissYouPing() {
         const data = await callKangen({ type: 'ping', id: MY_ID });
         console.log('[Kangen]', data);
         if (data.ok) showNotification('Sinyal kangen terkirim! 💕');
-        else if (data.reason === 'no_target') showNotification('HP pasanganmu belum aktif notifikasinya. Minta dia buka linknya & tekan tombol 🔔.');
-        else if (data.reason === 'bad_secret') showNotification('Kode rahasia di script.js tidak sama dengan di Apps Script.');
+        else if (data.reason === 'no_target') showNotification('HP pasanganmu belum mengizinkan notifikasi. Minta dia buka alamat rahasia ini dan tekan Izinkan.');
+        else if (data.reason === 'bad_secret') showNotification('Kode rahasia di script.js tidak sama dengan SECRET di Apps Script.');
         else showNotification('Gagal kirim (' + (data.reason || 'unknown') + '). Lihat console.');
     } catch (e) {
         showNotification('Gagal terhubung ke server, cek internet.');
