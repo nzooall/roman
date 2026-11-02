@@ -14,6 +14,42 @@ if (!firebase.apps.length) {
 }
 const db = firebase.database();
 
+// ============================================================
+// MODE HALAMAN: PUBLIK vs PRIVAT
+// Halaman privat (alamat rahasia) menyalakan mode ini lewat
+// <script>window.ROMAN_PRIVATE = true;</script> sebelum memuat script.js.
+// Halaman publik (index.html) TIDAK memiliki baris itu.
+// ============================================================
+const IS_PRIVATE = window.ROMAN_PRIVATE === true;
+
+if (!IS_PRIVATE) {
+    // Sembunyikan semua elemen bertanda data-private sebelum sempat terlihat
+    const st = document.createElement('style');
+    st.textContent = '[data-private]{display:none !important;}';
+    (document.head || document.documentElement).appendChild(st);
+}
+
+function applyPublicMode() {
+    if (IS_PRIVATE) return;
+    const hide = el => { if (el) el.style.display = 'none'; };
+    document.querySelectorAll('[data-private]').forEach(hide);
+
+    // Tombol-tombol khusus berdua
+    ['[onclick*="sendMissYouPing"]', '[onclick*="openLetter"]', '[onclick*="openAddPhotoModal"]']
+        .forEach(sel => document.querySelectorAll(sel).forEach(hide));
+
+    // Bagian foto, bucket list, dan notes (hanya disembunyikan jika <section>-nya tidak memuat penghitung hari)
+    const counter = document.getElementById('daysCount');
+    ['photoGrid', 'bucketListContainer', 'notesContainer'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const sec = el.closest('section');
+        hide(sec && !(counter && sec.contains(counter)) ? sec : el);
+    });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyPublicMode);
+else applyPublicMode();
+
 const currentYearEl = document.getElementById('currentYear');
 if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
 
@@ -590,31 +626,33 @@ const bucketRef = db.ref('bucketList');
 const photosRef = db.ref('photoMemories');
 const notesRef = db.ref('notes');
 
-bucketRef.once('value').then(snap => {
-    if (!snap.exists()) {
-        const seed = {};
-        DEFAULT_BUCKET.forEach(item => seed[item.id] = item);
-        bucketRef.set(seed);
-    }
-});
+if (IS_PRIVATE) {
+    bucketRef.once('value').then(snap => {
+        if (!snap.exists()) {
+            const seed = {};
+            DEFAULT_BUCKET.forEach(item => seed[item.id] = item);
+            bucketRef.set(seed);
+        }
+    });
 
-bucketRef.on('value', snapshot => {
-    const data = snapshot.val();
-    bucketList = data ? Object.values(data) : [];
-    renderBucketList();
-});
+    bucketRef.on('value', snapshot => {
+        const data = snapshot.val();
+        bucketList = data ? Object.values(data) : [];
+        renderBucketList();
+    });
 
-photosRef.on('value', snapshot => {
-    const data = snapshot.val();
-    photoMemories = data ? Object.values(data).sort((a, b) => b.id - a.id) : [];
-    renderPhotoGallery();
-});
+    photosRef.on('value', snapshot => {
+        const data = snapshot.val();
+        photoMemories = data ? Object.values(data).sort((a, b) => b.id - a.id) : [];
+        renderPhotoGallery();
+    });
 
-notesRef.on('value', snapshot => {
-    const data = snapshot.val();
-    notes = data ? Object.values(data).sort((a, b) => b.id - a.id) : [];
-    renderNotes();
-});
+    notesRef.on('value', snapshot => {
+        const data = snapshot.val();
+        notes = data ? Object.values(data).sort((a, b) => b.id - a.id) : [];
+        renderNotes();
+    });
+}
 
 const coupleNamesEl = document.getElementById('coupleNames');
 if (coupleNamesEl) coupleNamesEl.textContent = coupleNames;
@@ -926,15 +964,16 @@ function tryAutoplayMusic() {
 tryAutoplayMusic();
 
 // ============================================================
-// NOTIFIKASI KANGEN (OneSignal + Cloudflare Worker)
+// NOTIFIKASI KANGEN (Firebase Cloud Messaging + Google Apps Script)
+// Hanya aktif di halaman PRIVAT.
 // ============================================================
-const ONESIGNAL_APP_ID = "d09086e7-8ca9-4fef-b35a-4afd38b29c79";
-const KANGEN_WORKER_URL = "https://kangen.manroekenzo45.workers.dev";
-const KANGEN_SECRET = "MANURUNG2009";
+const KANGEN_URL = "https://script.google.com/macros/s/AKfycbw2jKaVQUsVojkZj91qcr0d8U-yFQK30Dgwhl2lLst5LTRzrXcpjVCSx9XWYXcTH0Q4Vw/exec";      // URL /exec dari Apps Script
+const KANGEN_SECRET = "zozoo";    // sama persis dengan SECRET di Script Properties
+const VAPID_KEY = "BKiWc4sW6SIY6J2qp9mpVBo8S3FCZkY8yufO4Phbb5I1uh4bOQ2GpCxeRBETtRk8cds1sT4vUtUU7mss2uN2pCA";         // Firebase > Cloud Messaging > Web Push certificates
 
-// Identitas perangkat: "kenzo" (HP kamu) atau "doi" (HP ceweknya).
-// Diset sekali lewat ?u=kenzo atau ?u=doi, lalu diingat browser. ?u=reset untuk menghapus.
+// Identitas perangkat: "kenzo" atau "doi". Set lewat ?u=kenzo / ?u=doi, ?u=reset untuk menghapus.
 function getMyIdentity() {
+    if (!IS_PRIVATE) return null;
     const q = new URLSearchParams(location.search).get('u');
     try {
         if (q === 'reset') { localStorage.removeItem('roman_user'); return null; }
@@ -944,6 +983,17 @@ function getMyIdentity() {
 }
 const MY_ID = getMyIdentity();
 let pushBtnEl = null;
+let lastPingAt = 0;
+let fcmListening = false;
+
+async function callKangen(payload) {
+    const res = await fetch(KANGEN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // text/plain agar tidak kena CORS preflight
+        body: JSON.stringify(Object.assign({ secret: KANGEN_SECRET }, payload))
+    });
+    return res.json();
+}
 
 function setPushButton(active) {
     if (!MY_ID) return;
@@ -959,80 +1009,85 @@ function setPushButton(active) {
     pushBtnEl.style.display = active ? 'none' : 'block';
 }
 
+async function registerPushToken(askPermission) {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        showNotification('Browser ini belum mendukung notifikasi. Di iPhone, tambahkan situs ke Home Screen dulu.');
+        return false;
+    }
+    if (Notification.permission !== 'granted') {
+        if (!askPermission) return false;
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+            showNotification('Izin notifikasi ditolak. Buka pengaturan situs di Chrome → Notifikasi → Izinkan.');
+            return false;
+        }
+    }
+    const reg = await navigator.serviceWorker.register('/roman/firebase-messaging-sw.js', { scope: '/roman/' });
+    await navigator.serviceWorker.ready;
+    const messaging = firebase.messaging();
+    const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+    if (!token) return false;
+    const r = await callKangen({ type: 'register', id: MY_ID, token: token });
+    console.log('[Push] register', r);
+    if (!fcmListening) {
+        fcmListening = true;
+        // Notifikasi saat halaman sedang terbuka
+        messaging.onMessage(p => {
+            playChimeSound();
+            spawnHeartExplosion(window.innerWidth / 2, window.innerHeight / 2);
+            showNotification((p.notification && p.notification.body) || 'Sinyal kangen masuk 💕');
+        });
+    }
+    return !!r.ok;
+}
+
 async function enablePush() {
-    const OS = window._OS;
-    if (!OS) { showNotification('OneSignal belum siap, tunggu sebentar lalu coba lagi.'); return; }
     try {
-        await OS.Notifications.requestPermission();
-        if (OS.Notifications.permission) {
-            await OS.User.PushSubscription.optIn();
-            await OS.login(MY_ID);
+        const ok = await registerPushToken(true);
+        if (ok) {
             setPushButton(true);
             showNotification('Notifikasi aktif untuk "' + MY_ID + '" ✅');
         } else {
-            showNotification('Izin notifikasi ditolak. Buka pengaturan situs di Chrome → Notifikasi → Izinkan.');
+            showNotification('Gagal mendaftarkan notifikasi. Lihat console.');
         }
     } catch (e) {
         console.error('[Push] gagal aktifkan:', e);
-        showNotification('Gagal mengaktifkan notifikasi.');
+        showNotification('Gagal mengaktifkan notifikasi. Lihat console.');
     }
 }
 
+// Saat halaman dibuka: kalau izin sudah diberikan, token diperbarui otomatis
 if (MY_ID) {
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    OneSignalDeferred.push(async function (OneSignal) {
-        try {
-            await OneSignal.init({
-                appId: ONESIGNAL_APP_ID,
-                serviceWorkerPath: "/roman/OneSignalSDKWorker.js",
-                serviceWorkerParam: { scope: "/roman/" },
-                notifyButton: { enable: false }
-            });
-            window._OS = OneSignal;
-            await OneSignal.login(MY_ID);
-            const active = OneSignal.Notifications.permission && OneSignal.User.PushSubscription.optedIn;
-            console.log('[Push] id=' + MY_ID, 'izin=' + OneSignal.Notifications.permission,
-                        'optedIn=' + OneSignal.User.PushSubscription.optedIn);
-            setPushButton(!!active);
-            OneSignal.User.PushSubscription.addEventListener('change', (e) => {
-                setPushButton(!!e.current.optedIn);
-            });
-        } catch (e) {
-            console.error('[Push] init gagal:', e);
-            showNotification('OneSignal gagal dimuat: ' + (e && e.message ? e.message : e));
-        }
-    });
+    if ('Notification' in window && Notification.permission === 'granted') {
+        setPushButton(true);
+        registerPushToken(false).catch(e => console.error('[Push] refresh gagal:', e));
+    } else {
+        setPushButton(false);
+    }
 }
 
 async function sendMissYouPing() {
+    if (!IS_PRIVATE) return;
     if (!MY_ID) {
         showNotification('Perangkat belum didaftarkan. Buka link dengan ?u=kenzo atau ?u=doi dulu.');
         return;
     }
+    if (Date.now() - lastPingAt < 5000) {
+        showNotification('Sabar sebentar ya, jangan terlalu cepat 😄');
+        return;
+    }
+    lastPingAt = Date.now();
+
     playChimeSound();
     spawnHeartExplosion(window.innerWidth / 2, window.innerHeight / 2);
 
     try {
-        const res = await fetch(KANGEN_WORKER_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ from: MY_ID, secret: KANGEN_SECRET })
-        });
-        let data = {};
-        try { data = await res.json(); } catch (e) {}
-        console.log('[Kangen] status', res.status, data);
-
-        if (res.ok && data.ok) {
-            showNotification('Sinyal kangen terkirim! 💕');
-        } else if (data.reason === 'no_target') {
-            showNotification('HP pasanganmu belum aktif notifikasinya. Minta dia buka linknya & tekan tombol 🔔.');
-        } else if (data.reason === 'bad_secret') {
-            showNotification('Kode rahasia di script.js tidak sama dengan di Cloudflare.');
-        } else if (data.reason === 'bad_key') {
-            showNotification('API key OneSignal di Cloudflare salah.');
-        } else {
-            showNotification('Gagal kirim (' + (data.reason || res.status) + '). Lihat console.');
-        }
+        const data = await callKangen({ type: 'ping', id: MY_ID });
+        console.log('[Kangen]', data);
+        if (data.ok) showNotification('Sinyal kangen terkirim! 💕');
+        else if (data.reason === 'no_target') showNotification('HP pasanganmu belum aktif notifikasinya. Minta dia buka linknya & tekan tombol 🔔.');
+        else if (data.reason === 'bad_secret') showNotification('Kode rahasia di script.js tidak sama dengan di Apps Script.');
+        else showNotification('Gagal kirim (' + (data.reason || 'unknown') + '). Lihat console.');
     } catch (e) {
         showNotification('Gagal terhubung ke server, cek internet.');
     }
